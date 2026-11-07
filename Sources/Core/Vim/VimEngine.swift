@@ -31,7 +31,7 @@ final class VimEngine {
         var col: Int // 图素（grapheme cluster）下标
     }
 
-    private(set) var lines: [[Character]] = [[""]]
+    private(set) var lines: [[Character]] = [[]]
     private(set) var cursor = Position(line: 0, col: 0)
     private(set) var mode: Mode = .normal
     private(set) var pendingCount: Int?
@@ -57,7 +57,7 @@ final class VimEngine {
 
     func setText(_ string: String, cursorAtEnd: Bool) {
         let ls = string.components(separatedBy: "\n").map(Array.init)
-        lines = ls.isEmpty ? [[""]] : ls
+        lines = ls.isEmpty ? [[]] : ls
         if cursorAtEnd {
             let last = lines.count - 1
             cursor = Position(line: last, col: max(0, lines[last].count - 1))
@@ -72,7 +72,7 @@ final class VimEngine {
     /// insert 模式的编辑由宿主（UITextView）直接落到 buffer，用此接口同步。
     func syncFromText(_ string: String, cursorLine: Int, cursorCol: Int) {
         let ls = string.components(separatedBy: "\n").map(Array.init)
-        lines = ls.isEmpty ? [[""]] : ls
+        lines = ls.isEmpty ? [[]] : ls
         cursor.line = min(cursorLine, lines.count - 1)
         cursor.col = min(cursorCol, lines[cursor.line].count)
     }
@@ -364,12 +364,12 @@ final class VimEngine {
         if linewise {
             guard lines.count > lineRange.count else {
                 // 整个 buffer：清空内容
-                lines = [[""]]
+                lines = [[]]
                 cursor = Position(line: 0, col: 0)
                 return
             }
             lines.removeSubrange(lineRange)
-            if lines.isEmpty { lines = [[""]] }
+            if lines.isEmpty { lines = [[]] }
             return
         }
         if lineRange.count == 1 {
