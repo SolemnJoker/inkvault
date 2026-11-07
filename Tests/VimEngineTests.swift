@@ -27,8 +27,8 @@ final class VimEngineTests: XCTestCase {
         XCTAssertEqual(engine.text, expected, message, file: file, line: line)
     }
 
-    private func assertCursor(line: Int, col: Int, file: StaticString = #filePath, line: UInt = #line) {
-        XCTAssertEqual(engine.cursor.line, line, "cursor line", file: file, line: line)
+    private func assertCursor(row: Int, col: Int, file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertEqual(engine.cursor.line, row, "cursor line", file: file, line: line)
         XCTAssertEqual(engine.cursor.col, col, "cursor col", file: file, line: line)
     }
 
@@ -36,62 +36,62 @@ final class VimEngineTests: XCTestCase {
 
     func testTextLoadAndCursor() {
         load("hello\nworld")
-        assertCursor(line: 0, col: 0)
+        assertCursor(row: 0, col: 0)
         assertText("hello\nworld")
     }
 
     func testHLMove() {
         load("abcdef")
         type("lll")
-        assertCursor(line: 0, col: 3)
+        assertCursor(row: 0, col: 3)
         type("hh")
-        assertCursor(line: 0, col: 1)
+        assertCursor(row: 0, col: 1)
     }
 
     func testJKMove() {
         load("one\ntwo\nthree")
         type("jj")
-        assertCursor(line: 2, col: 0)
+        assertCursor(row: 2, col: 0)
         type("k")
-        assertCursor(line: 1, col: 0)
+        assertCursor(row: 1, col: 0)
     }
 
     func testDollarAndZero() {
         load("hello")
         type("$")
-        assertCursor(line: 0, col: 4)
+        assertCursor(row: 0, col: 4)
         type("0")
-        assertCursor(line: 0, col: 0)
+        assertCursor(row: 0, col: 0)
     }
 
     func testGGandG() {
         load("l1\nl2\nl3\nl4\nl5")
         type("G")
-        assertCursor(line: 4, col: 1)
+        assertCursor(row: 4, col: 1)
         type("gg")
-        assertCursor(line: 0, col: 0)
+        assertCursor(row: 0, col: 0)
         type("3G")
-        assertCursor(line: 2, col: 0)
+        assertCursor(row: 2, col: 0)
     }
 
     func testWordForwardBackward() {
         load("foo bar_baz qux")
         type("w")
-        assertCursor(line: 0, col: 4)
+        assertCursor(row: 0, col: 4)
         type("w")
-        assertCursor(line: 0, col: 12)
+        assertCursor(row: 0, col: 12)
         type("b")
-        assertCursor(line: 0, col: 4)
+        assertCursor(row: 0, col: 4)
         type("b")
-        assertCursor(line: 0, col: 0)
+        assertCursor(row: 0, col: 0)
     }
 
     func testWordEnd() {
         load("foo bar")
         type("e")
-        assertCursor(line: 0, col: 2)
+        assertCursor(row: 0, col: 2)
         type("e")
-        assertCursor(line: 0, col: 6)
+        assertCursor(row: 0, col: 6)
     }
 
     // MARK: 插入模式
@@ -130,7 +130,7 @@ final class VimEngineTests: XCTestCase {
         engine.insertBackspace() // 行首退格：并入上一行
         engine.key(.escape)
         assertText("abcd")
-        assertCursor(line: 0, col: 2)
+        assertCursor(row: 0, col: 2)
     }
 
     func testInsertBackspaceDeletesBeforeCursor() {
@@ -147,14 +147,14 @@ final class VimEngineTests: XCTestCase {
         load("l1\nl2\nl3")
         type("dd")
         assertText("l2\nl3")
-        assertCursor(line: 0, col: 0)
+        assertCursor(row: 0, col: 0)
     }
 
     func test3DDDeletesThree() {
         load("l1\nl2\nl3\nl4")
         engine.setText("l1\nl2\nl3\nl4", cursorAtEnd: false)
         type("2j")
-        assertCursor(line: 2, col: 0)
+        assertCursor(row: 2, col: 0)
         type("3dd")
         assertText("l1\nl4")
     }
@@ -235,18 +235,18 @@ final class VimEngineTests: XCTestCase {
     func testSearchForwardAndN() {
         load("one two one two")
         type("/one\r")
-        assertCursor(line: 0, col: 0)
+        assertCursor(row: 0, col: 0)
         type("n")
-        assertCursor(line: 0, col: 8)
+        assertCursor(row: 0, col: 8)
         type("n")
-        assertCursor(line: 0, col: 0) // 循环
+        assertCursor(row: 0, col: 0) // 循环
     }
 
     func testSearchBackward() {
         load("alpha beta alpha")
         engine.setText("alpha beta alpha", cursorAtEnd: true)
         type("?beta\r")
-        assertCursor(line: 0, col: 6)
+        assertCursor(row: 0, col: 6)
     }
 
     // MARK: 替换
