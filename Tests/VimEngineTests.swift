@@ -14,7 +14,13 @@ final class VimEngineTests: XCTestCase {
     }
 
     private func type(_ s: String) {
-        for c in s { engine.key(.char(c)) }
+        for c in s {
+            switch c {
+            case "\r": engine.key(.enter)
+            case "\u{1B}": engine.key(.escape)
+            default: engine.key(.char(c))
+            }
+        }
     }
 
     private func assertText(_ expected: String, _ message: String = "", file: StaticString = #filePath, line: UInt = #line) {
@@ -111,18 +117,28 @@ final class VimEngineTests: XCTestCase {
         engine.insertText("new")
         engine.key(.escape)
         assertText("abX\nnew\ncd")
+        // 光标在 new 行（line 1），O 在其上方开行
         type("O")
         engine.insertText("top")
         engine.key(.escape)
-        assertText("top\nabX\nnew\ncd")
+        assertText("abX\ntop\nnew\ncd")
     }
 
     func testInsertBackspaceJoinsLines() {
         load("ab\ncd")
-        type("jli")
-        engine.insertBackspace()
+        type("ji")
+        engine.insertBackspace() // 行首退格：并入上一行
         engine.key(.escape)
         assertText("abcd")
+        assertCursor(line: 0, col: 2)
+    }
+
+    func testInsertBackspaceDeletesBeforeCursor() {
+        load("ab\ncd")
+        type("jli")
+        engine.insertBackspace() // 光标在 d 前：删 c
+        engine.key(.escape)
+        assertText("ab\nd")
     }
 
     // MARK: operator

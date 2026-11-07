@@ -173,8 +173,8 @@ final class VimEngine {
         switch c {
         case "h": move(times: count1, by: { $0.col -= 1 }); consumeCount()
         case "l": move(times: count1, by: { $0.col += 1 }); consumeCount()
-        case "j": move(times: count1, by: { $0.line += 1; $0.col = min($0.col, lineCount($0.line) - 1) }); consumeCount()
-        case "k": move(times: count1, by: { $0.line -= 1; $0.col = min($0.col, lineCount($0.line) - 1) }); consumeCount()
+        case "j": move(times: count1, by: { $0.line = min($0.line + 1, lines.count - 1); $0.col = min($0.col, max(0, lineCount($0.line) - 1)) }); consumeCount()
+        case "k": move(times: count1, by: { $0.line = max($0.line - 1, 0); $0.col = min($0.col, max(0, lineCount($0.line) - 1)) }); consumeCount()
         case "w": move(times: count1, by: wordForward); consumeCount()
         case "b": move(times: count1, by: wordBackward); consumeCount()
         case "e": move(times: count1, by: wordEnd); consumeCount()
@@ -228,8 +228,8 @@ final class VimEngine {
         switch c {
         case "v": mode = .visualChar; visualAnchor = cursor
         case "V": mode = .visualLine; visualAnchor = cursor
-        case "j": move(times: count1, by: { $0.line += 1; $0.col = min($0.col, lineCount($0.line) - 1) }); consumeCount()
-        case "k": move(times: count1, by: { $0.line -= 1; $0.col = min($0.col, lineCount($0.line) - 1) }); consumeCount()
+        case "j": move(times: count1, by: { $0.line = min($0.line + 1, lines.count - 1); $0.col = min($0.col, max(0, lineCount($0.line) - 1)) }); consumeCount()
+        case "k": move(times: count1, by: { $0.line = max($0.line - 1, 0); $0.col = min($0.col, max(0, lineCount($0.line) - 1)) }); consumeCount()
         case "h": move(times: count1, by: { $0.col -= 1 }); consumeCount()
         case "l": move(times: count1, by: { $0.col += 1 }); consumeCount()
         case "w": move(times: count1, by: wordForward); consumeCount()
@@ -458,28 +458,43 @@ final class VimEngine {
         guard let search = lastSearch else { message = "无历史搜索"; return }
         let pattern = Array(search.pattern)
         guard !pattern.isEmpty else { return }
-        // 从光标后（或前）逐位置扫描
+        let stepForward = forward != search.backward
         var (line, col) = (cursor.line, cursor.col)
-        let stepForward = forward != search.backward ? true : false
-        for _ in 0..<(lines.count * 2) {
+        // 起点错位：前进从当前匹配之后开始，后退从之前开始（n 不得停在原位）
+        func advance(_ forwardStep: Bool) {
+            if forwardStep {
+                col += 1
+                if col > max(0, lineCount(line) - pattern.count) {
+                    line += 1
+                    if line >= lines.count { line = 0 }
+                    col = 0
+                }
+            } else {
+                col -= 1
+                if col < 0 {
+                    line -= 1
+                    if line < 0 { line = lines.count - 1 }
+                    col = max(0, lineCount(line) - pattern.count)
+                }
+            }
+        }
+        advance(stepForward)
+        let total = lines.reduce(0) { $0 + $1.count } + 2
+        for _ in 0..<max(total, 4) {
             if stepForward {
                 if col + pattern.count <= lineCount(line), match(atLine: line, col: col, pattern: pattern) {
                     cursor = Position(line: line, col: col)
                     lastSearchHit = cursor
                     return
                 }
-                col += 1
-                if col > lineCount(line) - pattern.count { line += 1; col = 0 }
-                if line >= lines.count { line = 0; col = 0 }
             } else {
-                if col >= 0, col + pattern.count <= lineCount(line), match(atLine: line, col: col, pattern: pattern) {
+                if col + pattern.count <= lineCount(line), match(atLine: line, col: col, pattern: pattern) {
                     cursor = Position(line: line, col: col)
                     lastSearchHit = cursor
                     return
                 }
-                col -= 1
-                if col < 0 { line -= 1; if line < 0 { line = lines.count - 1 }; col = max(0, lineCount(line) - pattern.count) }
             }
+            advance(stepForward)
         }
         message = "未找到：\(search.pattern)"
     }
