@@ -39,7 +39,15 @@ jobs:
           cache: true
           cache-dependency-path: go/kernel/go.sum
 
+      - name: Cache kernel framework
+        id: kfw
+        uses: actions/cache@v4
+        with:
+          path: build/SyncthingKernel.xcframework
+          key: kernel-${{ hashFiles('go/kernel/**/*.go', 'go/kernel/go.mod', 'go/kernel/go.sum') }}
+
       - name: Build Syncthing kernel xcframework
+        if: steps.kfw.outputs.cache-hit != 'true'
         working-directory: go/kernel
         run: |
           go install golang.org/x/mobile/cmd/gomobile@latest
@@ -47,6 +55,10 @@ jobs:
           gomobile bind -tags noassets -target ios,iossimulator \
             -o ../../build/SyncthingKernel.xcframework .
           ls -la ../../build/
+
+      - name: Ensure kernel framework present
+        if: steps.kfw.outputs.cache-hit == 'true'
+        run: test -d build/SyncthingKernel.xcframework
 
       - name: Log generated kernel interface (for Swift bridge debugging)
         run: |

@@ -38,6 +38,9 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: Tests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: InkVault
 
