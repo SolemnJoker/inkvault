@@ -214,8 +214,8 @@ final class VimEngine {
         case "V": mode = .visualLine; visualAnchor = cursor
         case "/": startSearch(backward: false)
         case "?": startSearch(backward: true)
-        case "n": jumpSearch(forward: lastSearch.map { !$0.backward } ?? true)
-        case "N": jumpSearch(forward: lastSearch.map { $0.backward } ?? false)
+        case "n": jumpSearch(forward: lastSearch.map { !$0.backward } ?? true, skipCurrent: true)
+        case "N": jumpSearch(forward: lastSearch.map { $0.backward } ?? false, skipCurrent: true)
         case ":": mode = .exCommand; pendingEx = ""
         default:
             message = "未支持命令：\(c)"
@@ -342,8 +342,9 @@ final class VimEngine {
             }
         }
         let (start, end) = ordered(cursor, target)
-        // w/e 动作在行尾语义：end 落到下一行首时收回上一行末尾
-        finishOperatorCharwise(op: op, lines: start.line...end.line, startCol: start.col, endCol: min(end.col + (motionChar == "b" || motionChar == "0" || motionChar == "^" ? 0 : 1), lineCount(end.line)), linewise: false)
+        // w/b/0/^ 删到目标列（不含）；e/$ 含目标字符
+        let inclusive = (motionChar == "e" || motionChar == "$") ? 1 : 0
+        finishOperatorCharwise(op: op, lines: start.line...end.line, startCol: start.col, endCol: min(end.col + inclusive, lineCount(end.line)), linewise: false)
     }
 
     private func finishOperatorCharwise(op: Operator, lines lineRange: ClosedRange<Int>, startCol: Int, endCol: Int, linewise: Bool) {
@@ -461,13 +462,13 @@ final class VimEngine {
         pendingEx = backward ? "?" : "/"
     }
 
-    private func jumpSearch(forward: Bool) {
+    private func jumpSearch(forward: Bool, skipCurrent: Bool = false) {
         guard let search = lastSearch else { message = "无历史搜索"; return }
         let pattern = Array(search.pattern)
         guard !pattern.isEmpty else { return }
         let stepForward = forward != search.backward
         var (line, col) = (cursor.line, cursor.col)
-        // 起点错位：前进从当前匹配之后开始，后退从之前开始（n 不得停在原位）
+        // n/N 不得停在原位；初次搜索允许命中光标当前位置
         func advance(_ forwardStep: Bool) {
             if forwardStep {
                 col += 1
@@ -485,7 +486,7 @@ final class VimEngine {
                 }
             }
         }
-        advance(stepForward)
+        if skipCurrent { advance(stepForward) }
         let total = lines.reduce(0) { $0 + $1.count } + 2
         for _ in 0..<max(total, 4) {
             if stepForward {

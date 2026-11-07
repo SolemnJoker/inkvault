@@ -67,7 +67,7 @@ final class VimEngineTests: XCTestCase {
     func testGGandG() {
         load("l1\nl2\nl3\nl4\nl5")
         type("G")
-        assertCursor(row: 4, col: 1)
+        assertCursor(row: 4, col: 0)
         type("gg")
         assertCursor(row: 0, col: 0)
         type("3G")
@@ -156,7 +156,7 @@ final class VimEngineTests: XCTestCase {
         type("2j")
         assertCursor(row: 2, col: 0)
         type("3dd")
-        assertText("l1\nl4")
+        assertText("l1\nl2")
     }
 
     func testDWDeletesWord() {
@@ -191,7 +191,7 @@ final class VimEngineTests: XCTestCase {
     func testYankLineAndPaste() {
         load("l1\nl2")
         type("yyjp")
-        assertText("l1\nl2\nl2")
+        assertText("l1\nl2\nl1")
     }
 
     func testDDThenPUndoesDeletion() {
@@ -209,7 +209,7 @@ final class VimEngineTests: XCTestCase {
     func testVisualLineYankPaste() {
         load("a\nb\nc")
         type("jVyjp")
-        assertText("a\nb\nb\nc")
+        assertText("a\nb\nc\nb")
     }
 
     // MARK: 撤销重做

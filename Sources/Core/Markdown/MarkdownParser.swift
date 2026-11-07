@@ -171,8 +171,8 @@ struct MarkdownParser {
                     while i + 1 < lines.count {
                         let next = lines[i + 1]
                         let nextLead = next.count - next.drop(while: { $0 == " " }).count
-                        if nextLead > markerLen, !next.trimmingCharacters(in: .whitespaces).isEmpty {
-                            sub.append(String(next.dropFirst(min(nextLead, markerLen + 2))))
+                        if nextLead > 0, !next.trimmingCharacters(in: .whitespaces).isEmpty {
+                            sub.append(String(next.dropFirst(nextLead)))
                             i += 1
                         } else { break }
                     }
@@ -305,7 +305,13 @@ struct MarkdownParser {
                 if i + 1 < chars.count, chars[i + 1] == "[",
                    let close = findWikiClose(chars, from: i + 2) {
                     let inner = String(chars[(i + 2)..<close])
-                    flush(); spans.append(.wiki(target: inner, alias: nil)); i = close + 2
+                    // [[target|alias]]：按第一个 | 拆分
+                    let parts = inner.components(separatedBy: "|")
+                    if parts.count >= 2 {
+                        flush(); spans.append(.wiki(target: parts[0], alias: parts[1])); i = close + 2
+                    } else {
+                        flush(); spans.append(.wiki(target: inner, alias: nil)); i = close + 2
+                    }
                 } else if let close = findInlineClose(chars, from: i + 1, marker: "]") {
                     let label = String(chars[(i + 1)..<close])
                     var j = close + 1

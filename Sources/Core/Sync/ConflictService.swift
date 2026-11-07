@@ -90,9 +90,10 @@ final class ConflictService: ObservableObject {
             // 都保留：冲突副本改名为「原名-conflict-时间戳」留在 vault
             let stamp = DateFormatter.fallbackStamp.string(from: Date())
             for (i, c) in conflictURLs.enumerated() {
-                let base = c.deletingPathExtension()
+                let originalURL = URL(fileURLWithPath: Self.originalPath(forConflict: c.path))
+                let stem = originalURL.deletingPathExtension().lastPathComponent
                 let ext = c.pathExtension
-                let newName = base.lastPathComponent + "-conflict-\(stamp)\(i > 0 ? "-\(i)" : "")" + (ext.isEmpty ? "" : "." + ext)
+                let newName = stem + "-conflict-\(stamp)\(i > 0 ? "-\(i)" : "")" + (ext.isEmpty ? "" : "." + ext)
                 let target = c.deletingLastPathComponent().appendingPathComponent(newName)
                 try FileManager.default.moveItem(at: c, to: target)
             }
