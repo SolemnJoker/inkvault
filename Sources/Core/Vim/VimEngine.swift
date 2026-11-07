@@ -31,7 +31,7 @@ final class VimEngine {
         var col: Int // 图素（grapheme cluster）下标
     }
 
-    private(set) var lines: [[Character]] = [""]
+    private(set) var lines: [[Character]] = [[""]]
     private(set) var cursor = Position(line: 0, col: 0)
     private(set) var mode: Mode = .normal
     private(set) var pendingCount: Int?
@@ -364,12 +364,12 @@ final class VimEngine {
         if linewise {
             guard lines.count > lineRange.count else {
                 // 整个 buffer：清空内容
-                lines = [""]
+                lines = [[""]]
                 cursor = Position(line: 0, col: 0)
                 return
             }
             lines.removeSubrange(lineRange)
-            if lines.isEmpty { lines = [""] }
+            if lines.isEmpty { lines = [[""]] }
             return
         }
         if lineRange.count == 1 {
