@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  go-kernel:
+    name: Go kernel (embed smoke test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: go/kernel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          cache: true
+          cache-dependency-path: go/kernel/go.sum
+      - name: Vet
+        run: go vet -tags noassets ./...
+      - name: Test (boots the real engine, REST smoke)
+        run: go test -tags noassets -v ./...
+
+  ios:
+    name: iOS build + tests + unsigned IPA
+    runs-on: macos-15
+    timeout-minutes: 120
+    needs: [go-kernel]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.x"
+          cache: true
+          cache-dependency-path: go/kernel/go.sum
+
+      - name: Build Syncthing kernel xcframework
+        working-directory: go/kernel
+        run: |
+          go install golang.org/x/mobile/cmd/gomobile@latest
+          gomobile init
+          gomobile bind -tags noassets -target ios,iossimulator \
+            -o ../../build/SyncthingKernel.xcframework .
+          ls -la ../../build/
+
+      - name: Log generated kernel interface (for Swift bridge debugging)
+        run: |
+          find build -name "*.h" -path "*SyncthingKernel*" | while read f; do
+            echo "===== $f ====="
+            cat "$f"
+          done | head -120
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Pick iPad simulator
+        run: |
+          DEST=$(xcrun simctl list devices available | grep -m1 "iPad" | sed -E 's/.*\(([A-F0-9-]{36})\).*/\1/')
+          echo "SIM_ID=$DEST" >> "$GITHUB_ENV"
+
+      - name: Run unit tests
+        run: |
+          set -o pipefail
+          xcodebuild test -project InkVault.xcodeproj -scheme InkVault \
+            -destination "id=${SIM_ID}" \
+            -resultBundlePath build/results.xcresult 2>&1 | tail -80
+
+      - name: Archive (unsigned)
+        run: |
+          xcodebuild archive -project InkVault.xcodeproj -scheme InkVault \
+            -configuration Release -destination "generic/platform=iOS" \
+            -archivePath build/InkVault.xcarchive \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY=""
+
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p build/Payload
+          cp -R "build/InkVault.xcarchive/Products/Applications/InkVault.app" build/Payload/
+          cd build
+          zip -qry InkVault-unsigned.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: inkvault-unsigned-ipa
+          path: build/InkVault-unsigned.ipa
+
+      - name: Upload kernel framework (reuse in later jobs)
+        uses: actions/upload-artifact@v4
+        with:
+          name: syncthing-kernel-xcframework
+          path: build/SyncthingKernel.xcframework

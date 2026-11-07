@@ -1,0 +1,24 @@
+# Xcode / build
+build/
+DerivedData/
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+*.ipa
+*.xcarchive
+
+# Generated project (XcodeGen generates .xcodeproj from project.yml)
+/InkVault.xcodeproj
+
+# Go
+go/kernel/vendor/
+*.xcframework
+go/kernel/bind/
+
+# Node/local
+node_modules/
+.DS_Store
+
+# Local scratch
+/scratch/
+*.log

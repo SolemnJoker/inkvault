@@ -1,0 +1,35 @@
+schema: spec-driven
+
+context: |
+  Language: zh
+  All artifacts must be written in zh.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+
+  项目基线文档（提案/任务前必读）：
+  - docs/requirements.md — 需求基线 v1.0（US-01..US-13 / NFR-01..NFR-06）
+  - docs/decisions.md — 决策记录 v1.0（D-01..D-12 及附录待定项）
+  规则：提案与任务不得与决策记录冲突；若实现层面与某条决策冲突，
+  停止并引用决策编号（如"依据 D-05"）向需求方提出，不得自行替换方案。
+  性能验收一律以 NFR 编号为准；附录 A 待定项（T-01..T-05）由对应 Spike 回填。
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
