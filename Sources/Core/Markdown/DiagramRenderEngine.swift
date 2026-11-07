@@ -58,8 +58,8 @@ final class DiagramRenderEngine: NSObject {
         }
         cancelTeardown()
         queue.append(Request(kind: kind, code: code, itemID: itemID) { [weak self] result in
-            if let img = result.image.length > 0 ? result.image : nil, result.error == nil {
-                self?.cache.setObject(img, forKey: cacheKey)
+            if result.error == nil, result.size.width > 1 {
+                self?.cache.setObject(result.image, forKey: cacheKey)
             }
             completion(result)
         })
@@ -144,7 +144,7 @@ final class DiagramRenderEngine: NSObject {
         wv.evaluateJavaScript(js) { [weak self] raw, error in
             guard let self else { return }
             if let error {
-                self.finish(req, image: UIImage(), size: .zero, error: error.localizedDescription, webView: wv)
+                self.finish(req: req, image: UIImage(), size: .zero, error: error.localizedDescription, webView: wv)
                 return
             }
             guard let dict = raw as? [String: Any],
@@ -152,13 +152,13 @@ final class DiagramRenderEngine: NSObject {
                   let w = dict["width"] as? CGFloat ?? (dict["width"] as? NSNumber)?.doubleValue,
                   let h = dict["height"] as? CGFloat ?? (dict["height"] as? NSNumber)?.doubleValue
             else {
-                self.finish(req, image: UIImage(), size: .zero, error: "渲染输出异常", webView: wv)
+                self.finish(req: req, image: UIImage(), size: .zero, error: "渲染输出异常", webView: wv)
                 return
             }
             if !ok {
                 let msg = dict["error"] as? String ?? "渲染失败"
                 let img = Self.errorImage(width: min(640, w), height: max(28, h))
-                self.finish(req, image: img, size: img.size, error: msg, webView: wv)
+                self.finish(req: req, image: img, size: img.size, error: msg, webView: wv)
                 return
             }
             // 调整 webview 尺寸后整页快照
@@ -171,7 +171,7 @@ final class DiagramRenderEngine: NSObject {
                 config.afterScreenUpdates = true
                 wv.takeSnapshot(with: config) { image, _ in
                     let img = image ?? UIImage()
-                    self.finish(req, image: img, size: img.size, error: nil, webView: wv)
+                    self.finish(req: req, image: img, size: img.size, error: nil, webView: wv)
                 }
             }
         }
