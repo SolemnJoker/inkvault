@@ -83,7 +83,16 @@ jobs:
           set -o pipefail
           xcodebuild test -project InkVault.xcodeproj -scheme InkVault \
             -destination "id=${SIM_ID}" \
-            -resultBundlePath build/results.xcresult 2>&1 | tail -80
+            -resultBundlePath build/results.xcresult 2>&1 | tee build/test.log
+        continue-on-error: true
+
+      - name: Surface compile/test errors
+        run: |
+          grep -E "error: " build/test.log | sort -u | head -60 || true
+          grep -E "Failing tests:|Test Suite '.*' failed" build/test.log | sort -u | head -30 || true
+          grep -qE "\*\* TEST (FAILED|SUCCEEDED) \*\*" build/test.log
+          grep -q "\*\* TEST SUCCEEDED \*\*" build/test.log && echo TESTS_PASSED=1 >> "$GITHUB_ENV" || true
+          test -f build/test.log && ! grep -q "\*\* TEST SUCCEEDED \*\*" build/test.log && exit 1 || exit 0
 
       - name: Archive (unsigned)
         run: |
