@@ -94,7 +94,7 @@ final class EditorCoordinator: NSObject, UITextViewDelegate, ObservableObject {
         static let zero = FileStamp(size: -1, modified: nil)
     }
 
-    init() {
+    override init() {
         debouncer = Debouncer(interval: 1.0) // 默认 1s，可配（D-10）
         super.init()
         textView.delegate = self

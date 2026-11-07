@@ -181,7 +181,7 @@ final class SyncthingREST {
     }
 }
 
-enum SyncError: LocalizedError {
+enum SyncError: LocalizedError, Equatable {
     case notConfigured
     case notConsented
     case kernelStart(String)

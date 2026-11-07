@@ -29,7 +29,7 @@ indirect enum Block: Equatable {
     case table(header: [String], rows: [[String]])
     case hr
     /// YAML frontmatter 解析出的属性表（US-02）。
-    case frontmatter(fields: [(key: String, value: String)])
+    case frontmatter(fields: [FrontmatterField])
 }
 
 struct ListItem: Equatable {
@@ -45,16 +45,22 @@ struct ListItem: Equatable {
     }
 }
 
+/// frontmatter 属性表的键值对。
+struct FrontmatterField: Equatable {
+    var key: String
+    var value: String
+}
+
 // MARK: - 解析器
 
 /// 项目允许的扩展范围（D-02）：[[、![[、frontmatter、相对路径图片、Mermaid、KaTeX。
 struct MarkdownParser {
     /// 返回（frontmatter 字段, 块列表）；frontmatter 为 nil 表示无或未闭合。
-    static func parse(_ text: String) -> (frontmatter: [(key: String, value: String)]?, blocks: [Block]) {
+    static func parse(_ text: String) -> (frontmatter: [FrontmatterField]?, blocks: [Block]) {
         var lines = text.components(separatedBy: "\n")
-        var frontmatter: [(key: String, value: String)]?
+        var frontmatter: [FrontmatterField]?
         if lines.first?.trimmingCharacters(in: .whitespaces) == "---" {
-            var fields: [(String, String)] = []
+            var fields: [FrontmatterField] = []
             var i = 1
             var closed = false
             while i < lines.count {
@@ -63,7 +69,7 @@ struct MarkdownParser {
                 if let sep = l.firstIndex(of: ":") {
                     let key = String(l[..<sep]).trimmingCharacters(in: .whitespaces)
                     let value = String(l[l.index(after: sep)...]).trimmingCharacters(in: .whitespaces)
-                    if !key.isEmpty { fields.append((key, value)) }
+                    if !key.isEmpty { fields.append(FrontmatterField(key: key, value: value)) }
                 }
                 i += 1
             }

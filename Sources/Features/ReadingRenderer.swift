@@ -79,7 +79,7 @@ enum ReadingRenderer {
         return out
     }
 
-    private static func renderFrontmatter(_ fields: [(key: String, value: String)]) -> NSAttributedString {
+    private static func renderFrontmatter(_ fields: [FrontmatterField]) -> NSAttributedString {
         let out = NSMutableAttributedString()
         guard !fields.isEmpty else { return out }
         out.append(NSAttributedString(string: "属性\n", attributes: [
