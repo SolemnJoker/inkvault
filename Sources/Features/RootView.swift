@@ -229,9 +229,9 @@ struct SidebarView: View {
             }
             return FileNode(name: entry.name, path: entry.path, isDirectory: false,
                             hasConflict: conflictOrigins.contains(entry.path),
-                            children: [])
+                            children: nil)
         }
-        return FileNode(name: relative, path: relative, isDirectory: true, hasConflict: false, children: children)
+        return FileNode(name: relative, path: relative, isDirectory: true, hasConflict: false, children: children.isEmpty ? nil : children)
     }
 }
 
@@ -241,7 +241,7 @@ struct FileNode: Identifiable {
     var path: String
     var isDirectory: Bool
     var hasConflict: Bool
-    var children: [FileNode]
+    var children: [FileNode]?
 
     func prefixed(name: String) -> FileNode {
         FileNode(name: name, path: path, isDirectory: true, hasConflict: false, children: children)
