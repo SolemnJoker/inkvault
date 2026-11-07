@@ -390,8 +390,7 @@ struct MarkdownParser {
             if chars[i] == "$" {
                 if i == 0 || !isSpace(chars[i - 1]) { return i }
             }
-            if chars[i] == "
-" { return nil }
+            if chars[i] == "\n" { return nil }
             i += 1
         }
         return nil
