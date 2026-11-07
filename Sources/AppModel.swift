@@ -80,8 +80,9 @@ final class AppModel: ObservableObject {
     func handleScenePhase(_ phase: ScenePhase) {
         switch phase {
         case .background:
-            EditorSaveHub.shared.flushAll()   // D-10：挂起前落盘
-            Task { await sync.stopNow() }     // D-05：立即停内核
+            EditorSaveHub.shared.flushAll()        // D-10：挂起前落盘
+            DiagramRenderEngine.shared.tearDown()  // D-01：离屏渲染引擎随即销毁
+            Task { await sync.stopNow() }          // D-05：立即停内核
         default:
             break
         }

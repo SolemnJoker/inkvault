@@ -104,8 +104,14 @@ struct ReadingView: UIViewRepresentable {
         context.coordinator.renderedPath = path
         context.coordinator.renderedContent = content
         context.coordinator.onWikiTap = onWikiTap
-        tv.attributedText = ReadingRenderer.render(text: content, baseDir: baseDir, maxWidth: tv.bounds.width)
+        // 换笔记即换 token：旧的异步渲染结果一律丢弃（不常驻）
+        context.coordinator.newRenderToken()
+        var pending: [PendingDiagram] = []
+        tv.attributedText = ReadingRenderer.render(text: content, baseDir: baseDir, maxWidth: tv.bounds.width) { item in
+            pending.append(item)
+        }
         tv.setContentOffset(.zero, animated: false)
+        context.coordinator.flushDiagrams(textView: tv, items: pending)
     }
 
     func makeCoordinator() -> Coordinator { Coordinator(onWikiTap: onWikiTap) }
@@ -114,9 +120,53 @@ struct ReadingView: UIViewRepresentable {
         var renderedPath: String?
         var renderedContent: String?
         var onWikiTap: (String) -> Void
+        private var renderToken = UUID()
 
         init(onWikiTap: @escaping (String) -> Void) {
             self.onWikiTap = onWikiTap
+        }
+
+        func newRenderToken() {
+            renderToken = UUID()
+        }
+
+        /// 把占位条目交给离屏渲染引擎；完成后在主线程回填 attachment（D-01 例外管线）。
+        func flushDiagrams(textView: UITextView, items: [PendingDiagram]) {
+            guard !items.isEmpty else { return }
+            let token = renderToken
+            let maxWidth = max(200, textView.bounds.width - 32)
+            for item in items {
+                DiagramRenderEngine.shared.render(kind: item.kind, code: item.code, itemID: item.itemID) { [weak self, weak textView] result in
+                    DispatchQueue.main.async {
+                        guard let self, let textView, self.renderToken == token else { return } // 已换页/已销毁
+                        let storage = textView.textStorage
+                        let full = NSRange(location: 0, length: storage.length)
+                        var ranges: [NSRange] = []
+                        storage.enumerateAttribute(.attachment, in: full) { value, range, _ in
+                            if let att = value as? DiagramAttachment, att.itemID == item.itemID {
+                                ranges.append(range)
+                            }
+                        }
+                        guard !ranges.isEmpty else { return }
+                        item.attachment.image = result.image
+                        if result.error == nil, result.size.width > 4 {
+                            let fit = min(result.size.width, maxWidth)
+                            let scale = fit / result.size.width
+                            item.attachment.bounds = CGRect(
+                                x: 0,
+                                y: item.kind == .math ? -3 : -6,
+                                width: result.size.width * scale,
+                                height: result.size.height * scale
+                            )
+                        }
+                        storage.beginEditing()
+                        for r in ranges {
+                            storage.edited(.editedAttributes, range: r, changeInLength: 0)
+                        }
+                        storage.endEditing()
+                    }
+                }
+            }
         }
 
         func textView(_ textView: UITextView, shouldInteractWith url: URL, in characterRange: NSRange, interaction: UITextItemInteraction) -> Bool {

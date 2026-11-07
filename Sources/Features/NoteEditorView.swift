@@ -344,5 +344,8 @@ enum EditorHighlighter {
         ("\\[\\[[^\\]\n]+\\]\\]", [.foregroundColor: UIColor.systemBlue]),
         ("!\\[\\[[^\\]\n]+\\]\\]", [.foregroundColor: UIColor.systemTeal]),
         ("^\\s*[-*+] \\[[ xX]\\]", [.foregroundColor: UIColor.systemOrange]),
+        ("\\$\\$[^$\n]+\\$\\$", [.font: UIFont.monospacedSystemFont(ofSize: 15, weight: .semibold), .foregroundColor: UIColor.systemPurple]),
+        ("\\$[^$\n]+\\$", [.foregroundColor: UIColor.systemPurple]),
+        ("```mermaid", [.font: UIFont.monospacedSystemFont(ofSize: 14, weight: .semibold), .foregroundColor: UIColor.systemIndigo]),
     ]
 }

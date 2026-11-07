@@ -17,6 +17,8 @@ indirect enum Span: Equatable {
     case embed(target: String)
     /// ![alt](path)
     case image(path: String, alt: String)
+    /// 行内 $...$（display=false）与独立 $$...$$（display=true）
+    case math(tex: String, display: Bool)
 }
 
 /// 块级节点。
@@ -324,6 +326,20 @@ struct MarkdownParser {
                         } else { buffer.append(c); i += 1 }
                     } else { buffer.append(c); i += 1 }
                 } else { buffer.append(c); i += 1 }
+            case "$":
+                if i + 1 < chars.count, chars[i + 1] == "$",
+                   let close = findInlineClose(chars, from: i + 2, marker: "$$") {
+                    let inner = String(chars[(i + 2)..<close])
+                    if !inner.isEmpty {
+                        flush(); spans.append(.math(tex: inner, display: true)); i = close + 2
+                    } else { buffer.append(c); i += 2 }
+                } else if i + 1 < chars.count, !isSpace(chars[i + 1]),
+                          let close = findMathClose(chars, from: i + 2) {
+                    let inner = String(chars[(i + 1)..<close])
+                    if !inner.isEmpty, let last = inner.last, !isSpace(last) {
+                        flush(); spans.append(.math(tex: inner, display: false)); i = close + 1
+                    } else { buffer.append(c); i += 1 }
+                } else { buffer.append(c); i += 1 }
             case "h":
                 // 自动链接 http:// https://
                 if i + 7 < chars.count || (i + 6 < chars.count) {
@@ -367,6 +383,20 @@ struct MarkdownParser {
         return nil
     }
 
+    /// 行内数学闭合 $：跳过 $ 前为空格的位置，遇换行放弃
+    private static func findMathClose(_ chars: [Character], from: Int) -> Int? {
+        var i = from
+        while i < chars.count {
+            if chars[i] == "$" {
+                if i == 0 || !isSpace(chars[i - 1]) { return i }
+            }
+            if chars[i] == "
+" { return nil }
+            i += 1
+        }
+        return nil
+    }
+
     private static func isURLBreak(_ c: Character) -> Bool {
         c == " " || c == ")" || c == "]" || c == "\n" || c == "<"
     }
@@ -386,6 +416,7 @@ extension Span {
         case .wiki(let target, let alias): return alias ?? target
         case .embed(let target): return target
         case .image(_, let alt): return alt
+        case .math(let tex, _): return tex
         }
     }
 }

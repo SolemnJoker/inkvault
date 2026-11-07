@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="katex.min.css">
+<script src="katex.min.js"></script>
+<script src="mermaid.min.js"></script>
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; }
+  #out { display: inline-block; padding: 2px; margin: 0; }
+  .katex { font-size: 1.05em; }
+  svg { max-width: none; }
+  #err { display: none; color: #c00; font: 12px monospace; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<div id="out"></div>
+<div id="err"></div>
+<script>
+// 供离屏快照管线调用：kind = "mermaid" | "math"（行内）| "mathblock"（独立公式）
+// codeJson 是 JSON 编码后的公式/图源码字符串，避免注入与转义问题。
+async function renderItem(kind, codeJson) {
+  const out = document.getElementById('out');
+  const err = document.getElementById('err');
+  out.innerHTML = ''; err.textContent = ''; err.style.display = 'none';
+  let code = '';
+  try { code = JSON.parse(codeJson); } catch (e) { return JSON.stringify({ ok: false, error: 'bad payload' }); }
+  try {
+    if (kind === 'mermaid') {
+      mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default' });
+      const r = await mermaid.render('m' + Math.floor(Math.random() * 1e9), code);
+      out.innerHTML = r.svg;
+    } else {
+      katex.render(code, out, { displayMode: kind === 'mathblock', throwOnError: true });
+    }
+    const rect = out.getBoundingClientRect();
+    return JSON.stringify({ ok: true, width: Math.ceil(rect.width), height: Math.ceil(rect.height) });
+  } catch (e) {
+    err.textContent = String(e);
+    err.style.display = 'block';
+    const rect = err.getBoundingClientRect();
+    return JSON.stringify({ ok: false, error: String(e), width: Math.ceil(rect.width), height: Math.ceil(rect.height) });
+  }
+}
+window.renderItem = renderItem;
+</script>
+</body>
+</html>

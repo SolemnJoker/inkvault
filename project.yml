@@ -19,6 +19,12 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: Sources
+        excludes:
+          - "Resources/renderer/**"
+      # renderer 资源用文件夹引用整目录打包，保留 renderer/ 子目录结构
+      # （katex.min.css 以 fonts/ 相对路径引用字体，不能拍平）
+      - path: Sources/Resources/renderer
+        type: folder
     dependencies:
       - framework: build/SyncthingKernel.xcframework
         embed: true
