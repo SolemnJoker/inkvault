@@ -24,6 +24,10 @@ struct FullConfig: Codable {
         var autoAcceptFolders: Bool?
         var maxSendKbps: Int?
         var maxRecvKbps: Int?
+
+        init(deviceID: String) {
+            self.deviceID = deviceID
+        }
     }
 
     struct FolderConfig: Codable {
@@ -41,15 +45,29 @@ struct FullConfig: Codable {
         var versioning: Versioning?
         var paused: Bool?
 
+        init(id: String, path: String) {
+            self.id = id
+            self.path = path
+        }
+
         struct SharedDevice: Codable {
             var deviceID: String
             var introducedBy: String?
             var encryptionPassword: String?
+
+            init(deviceID: String) {
+                self.deviceID = deviceID
+            }
         }
 
         struct UnitValue: Codable {
             var value: Double?
             var unit: String?
+
+            init(value: Double, unit: String) {
+                self.value = value
+                self.unit = unit
+            }
         }
 
         struct Versioning: Codable {

@@ -55,7 +55,8 @@ final class ConflictService: ObservableObject {
 
     /// 读取原始文件与冲突副本内容供对比。
     func loadContents(pair: ConflictPair) -> (local: String, remote: [(path: String, text: String)]) {
-        let local = (try? String(contentsOf: session.absoluteURL(for: pair.originalPath), encoding: .utf8)) ?? ""
+        let localURL = session.absoluteURL(for: pair.originalPath)
+        let local = (localURL.flatMap { try? String(contentsOf: $0, encoding: .utf8) }) ?? ""
         var remote: [(String, String)] = []
         for cp in pair.conflictPaths {
             let text = (try? String(contentsOfFile: cp, encoding: .utf8)) ?? ""
@@ -115,7 +116,8 @@ final class ConflictService: ObservableObject {
     }
 
     private func walk(_ root: URL, _ visit: (URL) -> Void) {
-        guard let items = try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey], options: []) else { return }
+        let keys: [URLResourceKey] = [.isDirectoryKey]
+        guard let items = try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: keys, options: FileManager.DirectoryEnumerationOptions()) else { return }
         for item in items {
             if VaultInternal.isHiddenName(item.lastPathComponent) { continue }
             let isDir = (try? item.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false

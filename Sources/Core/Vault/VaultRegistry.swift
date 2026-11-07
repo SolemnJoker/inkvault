@@ -124,7 +124,8 @@ final class VaultSession {
     func listDirectory(relative: String) -> [Entry] {
         guard let root = rootURL else { return [] }
         let dir = relative.isEmpty ? root : root.appendingPathComponent(relative)
-        guard let items = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey], options: []) else { return [] }
+        let keys: [URLResourceKey] = [.isDirectoryKey, .contentModificationDateKey]
+        guard let items = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: keys, options: FileManager.DirectoryEnumerationOptions()) else { return [] }
         return items
             .filter { !VaultInternal.isHiddenName($0.lastPathComponent) }
             .map { url in

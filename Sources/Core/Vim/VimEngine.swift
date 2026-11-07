@@ -43,10 +43,15 @@ final class VimEngine {
 
     private var register = ""            // 未命名寄存器
     private var registerIsLinewise = false
-    private var undoStack: [(lines: [[Character]], cursor: Position)] = []
-    private var redoStack: [(lines: [[Character]], cursor: Position)] = []
+    private var undoStack: [Snapshot] = []
+    private var redoStack: [Snapshot] = []
     private(set) var lastSearch: (pattern: String, backward: Bool)?
     private var lastSearchHit: Position?
+
+    struct Snapshot {
+        var lines: [[Character]]
+        var cursor: Position
+    }
 
     // MARK: - 文本交互
 
@@ -93,6 +98,8 @@ final class VimEngine {
         case (.insert, _):
             // insert 模式按键由宿主直接输入；引擎仅响应 esc（上方分支）。
             break
+        case (.exCommand, _):
+            break // exCommand 已在入口处理
         case (.normal, .ctrlR):
             redo()
         case (.visualChar, .ctrlR), (.visualLine, .ctrlR):
@@ -152,7 +159,7 @@ final class VimEngine {
 
     private func handleNormal(_ key: Key) {
         guard case .char(let c) = key else {
-            if case .enter = key { moveToLineStart(); cursor.line = min(cursor.line + 1, lines.count - 1); clampCursor() }
+            if case .enter = key { cursor.col = 0; cursor.line = min(cursor.line + 1, lines.count - 1); clampCursor() }
             return
         }
         // 计数前缀
@@ -191,9 +198,9 @@ final class VimEngine {
         case "d": pendingOperator = .delete
         case "c": pendingOperator = .change
         case "y": pendingOperator = .yank
-        case "x": finishOperatorCharwise(op: .delete, lines: cursor.line..<cursor.line + 1, startCol: cursor.col, endCol: min(cursor.col + count1, lineCount(cursor.line)), linewise: false)
-        case "D": finishOperatorCharwise(op: .delete, lines: cursor.line..<cursor.line + 1, startCol: cursor.col, endCol: lineCount(cursor.line), linewise: false)
-        case "C": finishOperatorCharwise(op: .change, lines: cursor.line..<cursor.line + 1, startCol: cursor.col, endCol: lineCount(cursor.line), linewise: false)
+        case "x": finishOperatorCharwise(op: .delete, lines: cursor.line...cursor.line, startCol: cursor.col, endCol: min(cursor.col + count1, lineCount(cursor.line)), linewise: false)
+        case "D": finishOperatorCharwise(op: .delete, lines: cursor.line...cursor.line, startCol: cursor.col, endCol: lineCount(cursor.line), linewise: false)
+        case "C": finishOperatorCharwise(op: .change, lines: cursor.line...cursor.line, startCol: cursor.col, endCol: lineCount(cursor.line), linewise: false)
         case "p": paste(after: true)
         case "P": paste(after: false)
         case "i": mode = .insert
@@ -236,9 +243,9 @@ final class VimEngine {
         case "b": move(times: count1, by: wordBackward); consumeCount()
         case "0": cursor.col = 0
         case "$": cursor.col = max(0, lineCount(cursor.line) - 1)
-        case "d", "x": applyVisual(op: .delete)
-        case "c": applyVisual(op: .change)
-        case "y": applyVisual(op: .yank)
+        case "d", "x": applyVisual(.delete)
+        case "c": applyVisual(.change)
+        case "y": applyVisual(.yank)
         case "p": applyVisualPaste()
         default:
             message = "未支持命令：\(c)"
@@ -428,21 +435,21 @@ final class VimEngine {
     // MARK: - 撤销重做
 
     private func snapshotUndo() {
-        undoStack.append((lines, cursor))
+        undoStack.append(Snapshot(lines: lines, cursor: cursor))
         if undoStack.count > 100 { undoStack.removeFirst() }
         redoStack.removeAll()
     }
 
     private func undo() {
         guard let prev = undoStack.popLast() else { message = "已在最早变更"; return }
-        redoStack.append((lines, cursor))
+        redoStack.append(Snapshot(lines: lines, cursor: cursor))
         lines = prev.lines
         cursor = prev.cursor
     }
 
     private func redo() {
         guard let next = redoStack.popLast() else { message = "已在最新变更"; return }
-        undoStack.append((lines, cursor))
+        undoStack.append(Snapshot(lines: lines, cursor: cursor))
         lines = next.lines
         cursor = next.cursor
     }
@@ -546,7 +553,7 @@ final class VimEngine {
             message = "不支持的命令：\(cmd)"
             return
         }
-        let parts = body.split(separator: "/", omittingEmptySubsequence: false).map(String.init)
+        let parts = body.components(separatedBy: "/")
         guard parts.count >= 3 else { message = "替换格式：:s/旧/新/[g]"; return }
         let from = parts[1]
         let to = parts[2]

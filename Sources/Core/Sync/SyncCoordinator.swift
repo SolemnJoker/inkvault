@@ -51,7 +51,7 @@ final class SyncCoordinator: ObservableObject {
         progressNote = "正在启动同步内核…"
         let started = Date()
         let apiKey = config.apiKey
-        let port = Int32(config.settings.apiPort)
+        let port = config.settings.apiPort
 
         do {
             if !KernelBridge.isRunning {
@@ -108,13 +108,15 @@ final class SyncCoordinator: ObservableObject {
 
     /// 配置远端设备（地址 = 私有中继 + dynamic LAN）与共享 vault 文件夹（D-06）。
     private func configureTopology(client: SyncthingREST, vaultURL: URL) async throws {
-        var cfg = try client.config()
+        var cfg = try await client.config()
         let remoteID = config.settings.remoteDeviceID
         let relay = config.settings.relayURI
+        let folderID = SyncConfigStore.folderID
 
         // 设备
         if !cfg.devices.contains(where: { $0.deviceID == remoteID }) {
-            var dev = FullConfig.DeviceConfig(deviceID: remoteID, name: config.settings.remoteName)
+            var dev = FullConfig.DeviceConfig(deviceID: remoteID)
+            dev.name = config.settings.remoteName
             dev.addresses = relay.isEmpty ? ["dynamic"] : [relay, "dynamic"]
             cfg.devices.append(dev)
         } else if let idx = cfg.devices.firstIndex(where: { $0.deviceID == remoteID }) {
@@ -122,30 +124,28 @@ final class SyncCoordinator: ObservableObject {
             cfg.devices[idx].addresses = relay.isEmpty ? ["dynamic"] : [relay, "dynamic"]
         }
 
-        // 文件夹：path 用 file:// URL 格式（syncthing 期望绝对路径）
-        if let idx = cfg.folders.firstIndex(where: { $0.id == Self.folderID }) {
+        // 文件夹：syncthing 期望绝对路径
+        if let idx = cfg.folders.firstIndex(where: { $0.id == folderID }) {
             cfg.folders[idx].path = vaultURL.path
             var devices = cfg.folders[idx].devices ?? []
             if !devices.contains(where: { $0.deviceID == remoteID }) {
-                devices.append(.init(deviceID: remoteID, introducedBy: nil, encryptionPassword: nil))
+                devices.append(FullConfig.FolderConfig.SharedDevice(deviceID: remoteID))
             }
             cfg.folders[idx].devices = devices
         } else {
-            cfg.folders.append(FullConfig.FolderConfig(
-                id: Self.folderID,
-                label: "InkVault",
-                filesystemType: "basic",
-                path: vaultURL.path,
-                type: "sendreceive",
-                devices: [FullConfig.FolderConfig.SharedDevice(deviceID: remoteID, introducedBy: nil, encryptionPassword: nil)],
-                rescanIntervalS: 0,      // 无常驻扫描（NFR-03）
-                fsWatcherEnabled: false, // 无常驻文件监听（D-05）
-                ignorePerms: false,
-                autoNormalize: true,
-                minDiskFree: .init(value: 1, unit: "%"),
-                versioning: nil,         // D-12：明确不开启内核版本控制
-                paused: false
-            ))
+            var folder = FullConfig.FolderConfig(id: folderID, path: vaultURL.path)
+            folder.label = "InkVault"
+            folder.filesystemType = "basic"
+            folder.type = "sendreceive"
+            folder.devices = [FullConfig.FolderConfig.SharedDevice(deviceID: remoteID)]
+            folder.rescanIntervalS = 0      // 无常驻扫描（NFR-03）
+            folder.fsWatcherEnabled = false // 无常驻文件监听（D-05）
+            folder.ignorePerms = false
+            folder.autoNormalize = true
+            folder.minDiskFree = FullConfig.FolderConfig.UnitValue(value: 1, unit: "%")
+            folder.versioning = nil         // D-12：明确不开启内核版本控制
+            folder.paused = false
+            cfg.folders.append(folder)
         }
         try await client.saveConfig(cfg)
     }
@@ -155,7 +155,7 @@ final class SyncCoordinator: ObservableObject {
     /// 等待双向同步稳定：连接建立 → folder 状态 idle 且 inSync==global 连续 2 次。
     private func waitUntilSettled(client: SyncthingREST, started: Date) async throws -> SyncReport {
         let remoteID = config.settings.remoteDeviceID
-        let folder = Self.folderID
+        let folder = SyncConfigStore.folderID
         let timeoutBudget: TimeInterval = 600 // T-02 待定项的临时上限，Spike 回填后调整
         var stableCount = 0
 
@@ -164,7 +164,7 @@ final class SyncCoordinator: ObservableObject {
         while Date().timeIntervalSince(started) < 90 {
             let conns = try await client.connections()
             if conns.connections?[remoteID]?.connected == true { connected = true; break }
-            try await Task.sleep(nanoseconds: 2_000_000_000)
+            try await Task.sleep(for: .seconds(2))
         }
         if !connected { throw SyncError.remoteNotConnected }
 
@@ -186,7 +186,7 @@ final class SyncCoordinator: ObservableObject {
                 let pendingMB = Double(max(0, global - inSync)) / 1_048_576
                 progressNote = String(format: "同步中：剩余 %.1f MB", pendingMB)
             }
-            try await Task.sleep(nanoseconds: 2_000_000_000)
+            try await Task.sleep(for: .seconds(2))
         }
         throw SyncError.syncTimeout
     }

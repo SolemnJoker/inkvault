@@ -30,7 +30,8 @@ final class SearchService {
 
         func walk(_ dir: URL) async {
             guard results.count < limit, files < 5000 else { return }
-            guard let items = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.isDirectoryKey], options: []) else { return }
+            let keys: [URLResourceKey] = [.isDirectoryKey, .fileSizeKey]
+            guard let items = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: keys, options: FileManager.DirectoryEnumerationOptions()) else { return }
             for item in items {
                 if results.count >= limit { return }
                 if VaultInternal.isHiddenName(item.lastPathComponent) { continue }
