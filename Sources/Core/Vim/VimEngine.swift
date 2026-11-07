@@ -56,7 +56,7 @@ final class VimEngine {
     // MARK: - 文本交互
 
     var text: String {
-        get { lines.map(String.init).joined(separator: "\n") }
+        get { lines.map({ String($0) }).joined(separator: "\n") }
         set { setText(newValue, cursorAtEnd: false) }
     }
 
