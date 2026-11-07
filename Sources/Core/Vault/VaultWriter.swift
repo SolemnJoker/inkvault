@@ -54,6 +54,11 @@ final class VaultWriter {
 
     @discardableResult
     func write(_ data: Data, to url: URL) throws {
+        // 库保护守卫（US-09/D-04）：.obsidian/ 等配置目录一律拒绝写入
+        if VaultInternal.isHiddenPath(url) || url.lastPathComponent == ".stignore" {
+            throw CocoaError(.fileWriteNoPermission,
+                userInfo: [NSLocalizedDescriptionKey: "受保护的内部路径，禁止写入：\(url.lastPathComponent)"])
+        }
         let dir = url.deletingLastPathComponent()
         if !FileManager.default.fileExists(atPath: dir.path) {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
