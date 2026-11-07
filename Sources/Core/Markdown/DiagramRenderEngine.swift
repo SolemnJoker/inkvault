@@ -36,6 +36,7 @@ final class DiagramRenderEngine: NSObject {
     private var pageReady = false
     private var queue: [Request] = []
     private var processing = false
+    private var currentRequest: Request?
     private var idleTimer: Timer?
     private let cache = NSCache<NSString, UIImage>()
 
@@ -108,6 +109,7 @@ final class DiagramRenderEngine: NSObject {
             return
         }
         let config = WKWebViewConfiguration()
+        config.userContentController.add(self, name: "renderResult")
         let wv = WKWebView(frame: CGRect(x: 0, y: 0, width: 500, height: 200), configuration: config)
         wv.isOpaque = false
         wv.scrollView.isScrollEnabled = false
@@ -126,6 +128,7 @@ final class DiagramRenderEngine: NSObject {
             return
         }
         processing = true
+        currentRequest = req
         queue.removeFirst()
         guard pageReady, let wv = webView else {
             // 页面未就绪（可能刚被销毁）：重排队
@@ -140,41 +143,44 @@ final class DiagramRenderEngine: NSObject {
         } else {
             payload = "\"\""
         }
-        let js = "renderItem('\(req.kind.rawValue)', \(payload))"
-        wv.evaluateJavaScript(js) { [weak self] raw, error in
-            guard let self else { return }
-            if let error {
-                self.finish(req: req, image: UIImage(), size: .zero, error: error.localizedDescription, webView: wv)
-                return
+        // 尾缀 ;0：语句完成值是数字而非 Promise，避免桥接错误；结果走 message handler 回来
+        let js = "renderItem('\(req.kind.rawValue)', \(payload)); 0"
+        wv.evaluateJavaScript(js, completionHandler: nil)
+    }
+
+    private func handleRenderJSON(_ text: String, webView wv: WKWebView) {
+        guard let req = currentRequest, let data = text.data(using: .utf8),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let ok = dict["ok"] as? Bool,
+              let nW = dict["width"] as? NSNumber,
+              let nH = dict["height"] as? NSNumber
+        else {
+            if let req = currentRequest {
+                currentRequest = nil
+                finish(req: req, image: UIImage(), size: .zero, error: "渲染输出异常", webView: wv)
             }
-            guard let dict = raw as? [String: Any],
-                  let ok = dict["ok"] as? Bool,
-                  let nW = dict["width"] as? NSNumber,
-                  let nH = dict["height"] as? NSNumber
-            else {
-                self.finish(req: req, image: UIImage(), size: .zero, error: "渲染输出异常", webView: wv)
-                return
-            }
-            let w = nW.doubleValue
-            let h = nH.doubleValue
-            if !ok {
-                let msg = dict["error"] as? String ?? "渲染失败"
-                let img = Self.errorImage(width: min(640, CGFloat(w)), height: max(28, CGFloat(h)))
-                self.finish(req: req, image: img, size: img.size, error: msg, webView: wv)
-                return
-            }
-            // 调整 webview 尺寸后整页快照
-            DispatchQueue.main.async {
-                let width = min(max(4, w), 1400)
-                let height = min(max(4, h), 4000)
-                wv.frame = CGRect(x: 0, y: 0, width: width, height: height)
-                let config = WKSnapshotConfiguration()
-                config.rect = wv.bounds
-                config.afterScreenUpdates = true
-                wv.takeSnapshot(with: config) { image, _ in
-                    let img = image ?? UIImage()
-                    self.finish(req: req, image: img, size: img.size, error: nil, webView: wv)
-                }
+            return
+        }
+        currentRequest = nil
+        let w = CGFloat(nW.doubleValue)
+        let h = CGFloat(nH.doubleValue)
+        if !ok {
+            let msg = dict["error"] as? String ?? "渲染失败"
+            let img = Self.errorImage(width: min(640, w), height: max(28, h))
+            finish(req: req, image: img, size: img.size, error: msg, webView: wv)
+            return
+        }
+        // 调整 webview 尺寸后整页快照
+        DispatchQueue.main.async { [weak self] in
+            let width = min(max(4, w), 1400)
+            let height = min(max(4, h), 4000)
+            wv.frame = CGRect(x: 0, y: 0, width: width, height: height)
+            let config = WKSnapshotConfiguration()
+            config.rect = wv.bounds
+            config.afterScreenUpdates = true
+            wv.takeSnapshot(with: config) { image, _ in
+                let img = image ?? UIImage()
+                self?.finish(req: req, image: img, size: img.size, error: nil, webView: wv)
             }
         }
     }
@@ -183,6 +189,7 @@ final class DiagramRenderEngine: NSObject {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.processing = false
+            self.currentRequest = nil
             // 释放 JS 侧 DOM，控制内存
             webView.evaluateJavaScript("document.getElementById('out').innerHTML='';", completionHandler: nil)
             req.completion(DiagramResult(image: image, size: size, error: error))
@@ -201,6 +208,14 @@ final class DiagramRenderEngine: NSObject {
                 withAttributes: [.font: UIFont.systemFont(ofSize: 12), .foregroundColor: UIColor.systemRed]
             )
         }
+    }
+}
+
+extension DiagramRenderEngine: WKScriptMessageHandler {
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == "renderResult", let text = message.body as? String else { return }
+        guard let wv = webView else { return }
+        handleRenderJSON(text, webView: wv)
     }
 }
 

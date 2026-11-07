@@ -20,12 +20,17 @@
 <script>
 // 供离屏快照管线调用：kind = "mermaid" | "math"（行内）| "mathblock"（独立公式）
 // codeJson 是 JSON 编码后的公式/图源码字符串，避免注入与转义问题。
+function postResult(obj) {
+  if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.renderResult) {
+    window.webkit.messageHandlers.renderResult.postMessage(JSON.stringify(obj));
+  }
+}
 async function renderItem(kind, codeJson) {
   const out = document.getElementById('out');
   const err = document.getElementById('err');
   out.innerHTML = ''; err.textContent = ''; err.style.display = 'none';
   let code = '';
-  try { code = JSON.parse(codeJson); } catch (e) { return JSON.stringify({ ok: false, error: 'bad payload' }); }
+  try { code = JSON.parse(codeJson); } catch (e) { postResult({ ok: false, error: 'bad payload' }); return; }
   try {
     if (kind === 'mermaid') {
       mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default' });
@@ -35,12 +40,12 @@ async function renderItem(kind, codeJson) {
       katex.render(code, out, { displayMode: kind === 'mathblock', throwOnError: true });
     }
     const rect = out.getBoundingClientRect();
-    return JSON.stringify({ ok: true, width: Math.ceil(rect.width), height: Math.ceil(rect.height) });
+    postResult({ ok: true, width: Math.ceil(rect.width), height: Math.ceil(rect.height) });
   } catch (e) {
     err.textContent = String(e);
     err.style.display = 'block';
     const rect = err.getBoundingClientRect();
-    return JSON.stringify({ ok: false, error: String(e), width: Math.ceil(rect.width), height: Math.ceil(rect.height) });
+    postResult({ ok: false, error: String(e), width: Math.ceil(rect.width), height: Math.ceil(rect.height) });
   }
 }
 window.renderItem = renderItem;
