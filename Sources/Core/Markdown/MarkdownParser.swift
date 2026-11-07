@@ -383,6 +383,8 @@ struct MarkdownParser {
         return nil
     }
 
+    private static func isSpace(_ c: Character) -> Bool { c == " " || c == "	" }
+
     /// 行内数学闭合 $：跳过 $ 前为空格的位置，遇换行放弃
     private static func findMathClose(_ chars: [Character], from: Int) -> Int? {
         var i = from

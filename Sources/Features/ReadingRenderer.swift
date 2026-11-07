@@ -31,7 +31,7 @@ enum PlaceholderImage {
             let rect = CGRect(origin: .zero, size: size)
             UIColor.systemGray6.setFill()
             UIBezierPath(roundedRect: rect, cornerRadius: 6).fill()
-            if let label, let font = UIFont(name: "PingFangSC-Regular", size: 12) ?? UIFont.systemFont(ofSize: 12) {
+            if let label { let font = UIFont(name: "PingFangSC-Regular", size: 12) ?? UIFont.systemFont(ofSize: 12)
                 let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: UIColor.secondaryLabel]
                 let text = label as NSString
                 let ts = text.size(withAttributes: attrs)
