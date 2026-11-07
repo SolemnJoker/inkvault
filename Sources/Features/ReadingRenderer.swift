@@ -20,7 +20,7 @@ enum ReadingRenderer {
 
     // MARK: 块级
 
-    private static func renderBlock(_ block: Block, baseDir: URL?, maxWidth: CGFloat, depth: Int) -> NSAttributedString {
+    private static func renderBlock(_ block: Block, baseDir: URL?, maxWidth: CGFloat, depth: Int) -> NSMutableAttributedString {
         let out = NSMutableAttributedString()
         switch block {
         case .heading(let level, let spans):

@@ -65,7 +65,7 @@ struct NoteScreen: View {
     }
 
     private func findFile(named name: String, under root: URL, limit: Int) -> URL? {
-        guard let en = FileManager.default.enumerator(at: root, options: []) else { return nil }
+        guard let en = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil, options: []) else { return nil }
         var count = 0
         for case let url as URL in en {
             count += 1

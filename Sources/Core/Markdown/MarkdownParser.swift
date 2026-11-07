@@ -201,15 +201,15 @@ struct MarkdownParser {
 
     private static func isHR(_ s: String) -> Bool {
         let set = Set(s)
-        if set.isSubset(["-", " "]) && s.contains("-") { return s.split(separator: " ").joined().count >= 3 }
-        if set.isSubset(["*", " "]) && s.contains("*") { return s.split(separator: " ").joined().count >= 3 }
+        if set.isSubset(of: ["-", " "]) && s.contains("-") { return s.split(separator: " ").joined().count >= 3 }
+        if set.isSubset(of: ["*", " "]) && s.contains("*") { return s.split(separator: " ").joined().count >= 3 }
         return false
     }
 
     private static func isTableDivider(_ s: String) -> Bool {
         let t = s.trimmingCharacters(in: .whitespaces)
         guard t.contains("-") else { return false }
-        return Set(t).isSubset(["|", "-", ":", " "])
+        return Set(t).isSubset(of: ["|", "-", ":", " "])
     }
 
     private static func splitTableRow(_ s: String) -> [String] {

@@ -59,12 +59,13 @@ final class VimTextView: UITextView {
 
     static func mapKey(_ key: UIKey) -> VimEngine.Key? {
         if key.keyCode == .keyboardEscape { return .escape }
-        if key.keyCode == .keyboardReturn || key.keyCode == .keyboardKeypadEnter { return .enter }
+        if key.keyCode == .keyboardReturn { return .enter }
         if key.keyCode == .keyboardDeleteOrBackspace { return .backspace }
         let mods = key.modifierFlags
         if mods.contains(.control), key.keyCode == .keyboardR { return .ctrlR }
         guard mods.subtracting(.alphaShift).subtracting(.numericPad).isEmpty else { return nil }
-        guard let chars = key.charactersIgnoringModifiers, let first = chars.first else { return nil }
+        let chars = key.charactersIgnoringModifiers
+        guard let first = chars.first else { return nil }
         return .char(first)
     }
 }
@@ -191,7 +192,9 @@ final class EditorCoordinator: NSObject, UITextViewDelegate, ObservableObject {
             guard let remote else { return }
             vim.setText(remote, cursorAtEnd: false)
             textView.text = remote
-            _ = try? VaultWriter.shared.write(remote, to: remoteURL())
+            if let url = remoteURL() {
+                try? VaultWriter.shared.write(remote, to: url)
+            }
             loadedContent = remote
             baseline = stampNow()
         case .merge:

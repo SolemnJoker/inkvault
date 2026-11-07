@@ -94,49 +94,8 @@ struct SidebarView: View {
     @State private var searchTask: Task<Void, Never>?
 
     var body: some View {
-        List {
-            Section("笔记库") {
-                ForEach(model.registry.vaults) { vault in
-                    Button {
-                        model.switchVault(vault.id)
-                    } label: {
-                        HStack {
-                            Image(systemName: "books.vertical")
-                            Text(vault.name).lineLimit(1)
-                            if vault.id == model.registry.currentVaultID { Spacer(); Image(systemName: "checkmark") }
-                        }
-                    }
-                    .tint(.primary)
-                }
-                Button {
-                    model.showAddVault = true
-                } label: {
-                    Label("添加笔记库", systemImage: "plus")
-                }
-            }
-
-            if let conflicts = model.conflictService, !conflicts.pairs.isEmpty {
-                Section("待处理冲突（\(conflicts.pairs.count)）") {
-                    ForEach(conflicts.pairs) { pair in
-                        Button {
-                            model.showConflictCompare = pair
-                        } label: {
-                            Label(pair.displayName, systemImage: "exclamationmark.triangle")
-                                .foregroundStyle(.orange)
-                        }
-                    }
-                }
-            }
-
-            Section("文件") {
-                if let session = model.session {
-                    OutlineGroup(makeTree(session: session, relative: ""), children: \.children) { node in
-                        FileRow(node: node)
-                    }
-                }
-            }
-        }
-        .listStyle(.sidebar)
+        sidebarList
+            .listStyle(.sidebar)
         .searchable(text: $searchText, prompt: "搜索文件名或内容")
         .onAppear {
             // 冲突标记随同步更新（US-08）
@@ -171,6 +130,63 @@ struct SidebarView: View {
                     model.showSettings = true
                 } label: {
                     Image(systemName: "gearshape")
+                }
+            }
+        }
+    }
+
+    private var sidebarList: some View {
+        List {
+            vaultSection
+            conflictFilesSection
+            filesSection
+        }
+    }
+
+    private var vaultSection: some View {
+        Section("笔记库") {
+            ForEach(model.registry.vaults) { vault in
+                Button {
+                    model.switchVault(vault.id)
+                } label: {
+                    HStack {
+                        Image(systemName: "books.vertical")
+                        Text(vault.name).lineLimit(1)
+                        if vault.id == model.registry.currentVaultID { Spacer(); Image(systemName: "checkmark") }
+                    }
+                }
+                .tint(.primary)
+            }
+            Button {
+                model.showAddVault = true
+            } label: {
+                Label("添加笔记库", systemImage: "plus")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var conflictFilesSection: some View {
+        if let conflicts = model.conflictService, !conflicts.pairs.isEmpty {
+            Section("待处理冲突（\(conflicts.pairs.count)）") {
+                ForEach(conflicts.pairs) { pair in
+                    Button {
+                        model.showConflictCompare = pair
+                    } label: {
+                        Label(pair.displayName, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var filesSection: some View {
+        Section("文件") {
+            if let session = model.session {
+                OutlineGroup(makeTree(session: session, relative: ""), children: \.children) { node in
+                    FileRow(node: node)
                 }
             }
         }
