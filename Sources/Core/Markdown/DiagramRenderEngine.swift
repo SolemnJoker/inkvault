@@ -149,15 +149,17 @@ final class DiagramRenderEngine: NSObject {
             }
             guard let dict = raw as? [String: Any],
                   let ok = dict["ok"] as? Bool,
-                  let w = dict["width"] as? CGFloat ?? (dict["width"] as? NSNumber)?.doubleValue,
-                  let h = dict["height"] as? CGFloat ?? (dict["height"] as? NSNumber)?.doubleValue
+                  let nW = dict["width"] as? NSNumber,
+                  let nH = dict["height"] as? NSNumber
             else {
                 self.finish(req: req, image: UIImage(), size: .zero, error: "渲染输出异常", webView: wv)
                 return
             }
+            let w = nW.doubleValue
+            let h = nH.doubleValue
             if !ok {
                 let msg = dict["error"] as? String ?? "渲染失败"
-                let img = Self.errorImage(width: min(640, w), height: max(28, h))
+                let img = Self.errorImage(width: min(640, CGFloat(w)), height: max(28, CGFloat(h)))
                 self.finish(req: req, image: img, size: img.size, error: msg, webView: wv)
                 return
             }
