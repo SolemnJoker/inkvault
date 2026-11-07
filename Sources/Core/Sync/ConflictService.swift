@@ -101,18 +101,16 @@ final class ConflictService: ObservableObject {
     }
 
     /// 从冲突文件名还原原文件路径。
+    /// Syncthing 命名规则：`<base>.sync-conflict-<YYYYMMDD>-<HHMMSS>-<DEVID><ext>`
+    /// 例如原文件 `note.md` → `note.sync-conflict-20261108-010203-ABC1234.md`。
     static func originalPath(forConflict absPath: String) -> String {
-        let ns = absPath as NSString
-        let name = ns.lastPathComponent
+        let url = URL(fileURLWithPath: absPath)
+        let name = url.lastPathComponent
         guard let markerRange = name.range(of: conflictMarker) else { return absPath }
-        // 从标记处向后找到 "-" 分隔的设备 ID 结束（DEVID 7 位大写字母数字）
-        let afterMarker = name[markerRange.upperBound...] // YYYYMMDD-HHMMSS-DEVID
-        // 冲突名结构：<base>.<ext>.sync-conflict-<stamp>-<devid>.<ext>
-        // 原文件名 = 标记前的部分 + 冲突副本的最后扩展名
-        let baseWithExt = String(name[..<markerRange.lowerBound])
-        let finalExt = (ns.pathExtension != "" && !name.hasSuffix(ns.pathExtension)) ? "." + ns.pathExtension : ""
-        _ = afterMarker
-        return ns.deletingLastPathComponent.appendingPathComponent(baseWithExt + finalExt).path
+        let base = String(name[..<markerRange.lowerBound])
+        let ext = url.pathExtension
+        let original = ext.isEmpty ? base : base + "." + ext
+        return url.deletingLastPathComponent().appendingPathComponent(original).path
     }
 
     private func walk(_ root: URL, _ visit: (URL) -> Void) {

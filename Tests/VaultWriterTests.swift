@@ -89,7 +89,7 @@ final class ConflictServiceTests: XCTestCase {
 
     func testConflictDiscovery() throws {
         _ = try makeOriginal("note.md", content: "local")
-        _ = try makeOriginal("note.md.sync-conflict-20261108-010203-ABC1234.md", content: "remote")
+        _ = try makeOriginal("note.sync-conflict-20261108-010203-ABC1234.md", content: "remote")
         service.rescan()
         let exp = expectation(description: "rescan")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { exp.fulfill() }
@@ -101,7 +101,7 @@ final class ConflictServiceTests: XCTestCase {
 
     func testKeepLocalDeletesConflictCopy() throws {
         let original = try makeOriginal("note.md", content: "local")
-        let conflict = try makeOriginal("note.md.sync-conflict-20261108-010203-ABC1234.md", content: "remote")
+        let conflict = try makeOriginal("note.sync-conflict-20261108-010203-ABC1234.md", content: "remote")
         try service.resolve(pair: ConflictPair(originalPath: "note.md", conflictPaths: [conflict.path]), resolution: .keepLocal)
         XCTAssertEqual(try String(contentsOf: original, encoding: .utf8), "local")
         XCTAssertFalse(FileManager.default.fileExists(atPath: conflict.path))
@@ -109,7 +109,7 @@ final class ConflictServiceTests: XCTestCase {
 
     func testKeepRemoteReplacesOriginal() throws {
         let original = try makeOriginal("note.md", content: "local")
-        let conflict = try makeOriginal("note.md.sync-conflict-20261108-010203-ABC1234.md", content: "remote")
+        let conflict = try makeOriginal("note.sync-conflict-20261108-010203-ABC1234.md", content: "remote")
         try service.resolve(pair: ConflictPair(originalPath: "note.md", conflictPaths: [conflict.path]), resolution: .keepRemote)
         XCTAssertEqual(try String(contentsOf: original, encoding: .utf8), "remote")
         XCTAssertFalse(FileManager.default.fileExists(atPath: conflict.path))
@@ -117,7 +117,7 @@ final class ConflictServiceTests: XCTestCase {
 
     func testKeepBothRenamesConflict() throws {
         let original = try makeOriginal("note.md", content: "local")
-        let conflict = try makeOriginal("note.md.sync-conflict-20261108-010203-ABC1234.md", content: "remote")
+        let conflict = try makeOriginal("note.sync-conflict-20261108-010203-ABC1234.md", content: "remote")
         try service.resolve(pair: ConflictPair(originalPath: "note.md", conflictPaths: [conflict.path]), resolution: .keepBoth)
         XCTAssertEqual(try String(contentsOf: original, encoding: .utf8), "local")
         XCTAssertFalse(FileManager.default.fileExists(atPath: conflict.path))
@@ -126,7 +126,7 @@ final class ConflictServiceTests: XCTestCase {
     }
 
     func testOriginalPathRoundTrip() {
-        let conflict = "/vault/note.md.sync-conflict-20261108-010203-ABC1234.md"
+        let conflict = "/vault/note.sync-conflict-20261108-010203-ABC1234.md"
         XCTAssertEqual(ConflictService.originalPath(forConflict: conflict), "/vault/note.md")
         let noExt = "/vault/notes.sync-conflict-20261108-010203-ABC1234.md"
         XCTAssertEqual(ConflictService.originalPath(forConflict: noExt), "/vault/notes.md")
