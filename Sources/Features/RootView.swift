@@ -345,12 +345,18 @@ struct AddVaultSheet: View {
                 }
             }
             .fullScreenCover(isPresented: $pickerActive) {
-                // SwiftUI fileImporter 对第三方 App 位置（如 Obsidian）里的目录选择有已知缺陷：
-                // 「打开」无响应。改用 UIKit UIDocumentPickerViewController，全屏呈现排除 sheet 呈现干扰。
-                FolderPicker(onPick: { url in
-                    handlePicked(url: url)
-                }, asCopy: copyMode)
-                .ignoresSafeArea()
+                if useBrowserVC {
+                    // 装机被 Sideloadly 注入 DocBrowser 标记 → 必须走浏览器架构
+                    VaultBrowser { url in
+                        handlePicked(url: url)
+                    }
+                    .ignoresSafeArea()
+                } else {
+                    FolderPicker(onPick: { url in
+                        handlePicked(url: url)
+                    }, asCopy: copyMode)
+                    .ignoresSafeArea()
+                }
             }
             .alert("添加失败", isPresented: Binding(
                 get: { errorMsg != nil },
@@ -369,6 +375,12 @@ struct AddVaultSheet: View {
         let browser = info["UISupportsDocumentBrowser"].map { String(describing: $0) } ?? "(缺)"
         let bundleId = Bundle.main.bundleIdentifier ?? "-"
         Self.logger.info("装机实际值: LS=\(ls, privacy: .public), DocBrowser=\(browser, privacy: .public), bundle=\(bundleId, privacy: .public)")
+    }
+
+    /// Sideloadly 会强制注入 UISupportsDocumentBrowser=true；标记存在时必须走
+    /// UIDocumentBrowserViewController（普通 UIDocumentPicker 在此架构下「打开」静默失败）。
+    private var useBrowserVC: Bool {
+        (Bundle.main.infoDictionary?["UISupportsDocumentBrowser"] as? Bool) == true
     }
 
     private func handlePicked(url: URL) {
@@ -392,6 +404,34 @@ struct AddVaultSheet: View {
         } catch {
             Self.logger.error("bookmark 失败: \(error.localizedDescription, privacy: .public)")
             errorMsg = "生成访问书签失败：\(error.localizedDescription)。请重试；若反复失败，请把库移动到「文件」App 可见的位置。"
+        }
+    }
+}
+
+/// 文档浏览器（UISupportsDocumentBrowser=true 架构下的钦定选择器）。
+struct VaultBrowser: UIViewControllerRepresentable {
+    var onPick: (URL) -> Void
+
+    func makeUIViewController(context: Context) -> UIDocumentBrowserViewController {
+        AddVaultSheet.logger.info("呈现 UIDocumentBrowserViewController（装机标记 DocBrowser=true）")
+        let vc = UIDocumentBrowserViewController(forOpening: [.folder])
+        vc.delegate = context.coordinator
+        vc.allowsDocumentCreation = false
+        vc.allowsPickingMultipleItems = false
+        return vc
+    }
+
+    func updateUIViewController(_ vc: UIDocumentBrowserViewController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(onPick: onPick) }
+
+    final class Coordinator: NSObject, UIDocumentBrowserViewControllerDelegate {
+        let onPick: (URL) -> Void
+        init(onPick: @escaping (URL) -> Void) { self.onPick = onPick }
+
+        func documentBrowser(_ controller: UIDocumentBrowserViewController, didPickDocumentsAt documentURLs: [URL]) {
+            AddVaultSheet.logger.info("browser delegate 命中 didPick: \(documentURLs.map({ $0.lastPathComponent }), privacy: .public)")
+            if let url = documentURLs.first { onPick(url) }
         }
     }
 }
