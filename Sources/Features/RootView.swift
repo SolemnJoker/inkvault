@@ -282,6 +282,7 @@ struct AddVaultSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var picked: (url: URL, bookmark: Data)?
     @State private var pickerActive = false
+    @State private var copyMode = false
     @State private var vaultDetected = false
     @State private var errorMsg: String?
 
@@ -290,9 +291,16 @@ struct AddVaultSheet: View {
             Form {
                 Section {
                     Button {
+                        copyMode = false
                         pickerActive = true
                     } label: {
                         Label("选择笔记库文件夹", systemImage: "folder")
+                    }
+                    Button {
+                        copyMode = true
+                        pickerActive = true
+                    } label: {
+                        Label("诊断：导入副本模式选择", systemImage: "stethoscope")
                     }
                     if let picked {
                         HStack(alignment: .top, spacing: 10) {
@@ -339,9 +347,9 @@ struct AddVaultSheet: View {
             .fullScreenCover(isPresented: $pickerActive) {
                 // SwiftUI fileImporter 对第三方 App 位置（如 Obsidian）里的目录选择有已知缺陷：
                 // 「打开」无响应。改用 UIKit UIDocumentPickerViewController，全屏呈现排除 sheet 呈现干扰。
-                FolderPicker { url in
+                FolderPicker(onPick: { url in
                     handlePicked(url: url)
-                }
+                }, asCopy: copyMode)
                 .ignoresSafeArea()
             }
             .alert("添加失败", isPresented: Binding(
@@ -357,6 +365,14 @@ struct AddVaultSheet: View {
 
     private func handlePicked(url: URL) {
         pickerActive = false
+        Self.logger.info("handlePicked 进入, copyMode=\(copyMode), got=\(url.lastPathComponent, privacy: .public)")
+        if copyMode {
+            // 诊断路径：导入模式（系统把目录复制进我们沙盒）。能到这说明授权机制本身通，
+            // 失败仅在"就地打开"路径 —— 指向签名/授权问题。
+            errorMsg = "诊断成功：导入模式可以拿到目录（\(url.lastPathComponent)）。
+结论：问题锁定在『就地打开』授权路径（签名相关）。"
+            return
+        }
         let accessed = url.startAccessingSecurityScopedResource()
         defer { if accessed { url.stopAccessingSecurityScopedResource() } }
         do {
@@ -375,10 +391,11 @@ struct AddVaultSheet: View {
 /// UIKit 目录选择器：绕开 SwiftUI fileImporter 对第三方位置目录「打开」无响应的缺陷。
 struct FolderPicker: UIViewControllerRepresentable {
     var onPick: (URL) -> Void
+    var asCopy: Bool = false
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
-        AddVaultSheet.logger.info("FolderPicker 即将呈现")
-        let vc = UIDocumentPickerViewController(forOpeningContentTypes: [.folder], asCopy: false)
+        AddVaultSheet.logger.info("FolderPicker 即将呈现, asCopy=\(asCopy)")
+        let vc = UIDocumentPickerViewController(forOpeningContentTypes: [.folder], asCopy: asCopy)
         vc.delegate = context.coordinator
         vc.allowsMultipleSelection = false
         return vc
