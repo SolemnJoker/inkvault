@@ -1,4 +1,5 @@
 import SwiftUI
+import os
 
 struct RootView: View {
     @EnvironmentObject private var model: AppModel
@@ -275,10 +276,14 @@ struct FileRow: View {
 }
 
 struct AddVaultSheet: View {
+    private static let logger = Logger(subsystem: "com.inkvault.app", category: "vault")
+
     @EnvironmentObject private var model: AppModel
     @Environment(\.dismiss) private var dismiss
     @State private var picked: (url: URL, bookmark: Data)?
     @State private var pickerActive = false
+    @State private var vaultDetected = false
+    @State private var errorMsg: String?
 
     var body: some View {
         NavigationStack {
@@ -290,12 +295,24 @@ struct AddVaultSheet: View {
                         Label("选择笔记库文件夹", systemImage: "folder")
                     }
                     if let picked {
-                        Text(picked.url.lastPathComponent).font(.headline)
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: vaultDetected ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                                .foregroundStyle(vaultDetected ? Color.green : Color.orange)
+                                .padding(.top, 2)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(picked.url.lastPathComponent).font(.headline)
+                                Text(vaultDetected
+                                     ? "已识别 Obsidian 库（发现 .obsidian）"
+                                     : "未发现 .obsidian —— 可能不是库根目录。仍可打开，但若库在 Obsidian App 内部则无法这样选择。")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                     }
                 } header: {
                     Text("选择你已有的 Obsidian vault 目录")
                 } footer: {
-                    Text("App 直接读写该目录，不产生副本；.obsidian/ 等配置保持只读。")
+                    Text("仅支持「文件」App 或 iCloud 中可见的目录。若库存在 Obsidian App 内部（「我的 iPad」→ Obsidian），系统选择器无法访问——请在 Obsidian 中把库迁移到 iCloud 的 Obsidian 文件夹或任意「文件」位置。App 直接读写所选目录，不产生副本，.obsidian/ 保持只读。")
                 }
             }
             .navigationTitle("添加笔记库")
@@ -303,9 +320,15 @@ struct AddVaultSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("打开") {
                         guard let picked else { return }
+                        Self.logger.info("打开 vault: \(picked.url.lastPathComponent, privacy: .public), detected=\(vaultDetected)")
                         let record = model.registry.add(name: picked.url.lastPathComponent, bookmarkData: picked.bookmark)
                         model.openVault(record)
-                        dismiss()
+                        if model.vaultAuthorizationLost {
+                            errorMsg = "目录授权解析失败（\(picked.url.lastPathComponent)）。请重试选择，或把库移动到「文件」可见的位置后重试。"
+                            model.registry.remove(record.id)
+                        } else {
+                            dismiss()
+                        }
                     }
                     .disabled(picked == nil)
                 }
@@ -317,11 +340,26 @@ struct AddVaultSheet: View {
                 if case .success(let urls) = result, let url = urls.first {
                     let accessed = url.startAccessingSecurityScopedResource()
                     defer { if accessed { url.stopAccessingSecurityScopedResource() } }
-                    // 访问权有效期内生成 security-scoped bookmark（US-01）
-                    if let bookmark = try? url.bookmarkData() {
+                    do {
+                        let bookmark = try url.bookmarkData()
+                        let marker = url.appendingPathComponent(".obsidian")
+                        vaultDetected = FileManager.default.fileExists(atPath: marker.path)
                         picked = (url, bookmark)
+                        Self.logger.info("已选择目录 \(url.lastPathComponent, privacy: .public), bookmark ok, vaultDetected=\(vaultDetected)")
+                    } catch {
+                        Self.logger.error("bookmark 失败: \(error.localizedDescription, privacy: .public)")
+                        errorMsg = "生成访问书签失败：\(error.localizedDescription)
+请重试；若反复失败，请把库移动到"文件"App 可见的位置。"
                     }
                 }
+            }
+            .alert("添加失败", isPresented: Binding(
+                get: { errorMsg != nil },
+                set: { if !$0 { errorMsg = nil } }
+            )) {
+                Button("好", role: .cancel) { errorMsg = nil }
+            } message: {
+                Text(errorMsg ?? "")
             }
         }
     }
