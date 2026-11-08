@@ -20,6 +20,9 @@
 	<dict/>
 	<key>UIRequiresFullScreen</key>
 	<true/>
+	<!-- 文档选择器以"就地打开"方式接收 vault 目录的必要声明（缺它则第三方位置「打开」无响应） -->
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
