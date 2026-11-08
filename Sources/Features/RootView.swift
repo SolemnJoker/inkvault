@@ -93,7 +93,7 @@ struct SidebarView: View {
     @State private var searchText = ""
     @State private var searchResults: [SearchResult] = []
     @State private var searchTask: Task<Void, Never>?
-    @State private var isSearchFocused = false
+    @FocusState private var isSearchFocused: Bool
     @State private var showNewNoteAlert = false
     @State private var newNoteName = ""
 
