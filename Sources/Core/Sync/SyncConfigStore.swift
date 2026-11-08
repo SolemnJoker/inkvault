@@ -2,7 +2,7 @@ import Foundation
 
 /// 同步配置（非机密项）：存沙盒 JSON。API Key 存 Keychain（D-07）。
 struct SyncSettings: Codable {
-    /// 自建私有中继 URI，例如 relay://relay.example.com:6785/?id=XXXX
+    /// 自建私有中继 URI，例如 relay://relay.example.com:6785/?id=XXXXXXXX-XXXXXXX（首次配置向导中填写，不硬编码）
     var relayURI: String = ""
     /// 远端设备 ID（桌面端 Syncthing 设备）
     var remoteDeviceID: String = ""
