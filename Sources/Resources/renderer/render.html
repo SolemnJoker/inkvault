@@ -29,8 +29,8 @@ async function renderItem(kind, codeJson) {
   const out = document.getElementById('out');
   const err = document.getElementById('err');
   out.innerHTML = ''; err.textContent = ''; err.style.display = 'none';
-  let code = '';
-  try { code = JSON.parse(codeJson); } catch (e) { postResult({ ok: false, error: 'bad payload' }); return; }
+  let code;
+  code = codeJson; // Swift 侧已 JSON 编码为 JS 字面量，此处已是原始文本
   try {
     if (kind === 'mermaid') {
       mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default' });
