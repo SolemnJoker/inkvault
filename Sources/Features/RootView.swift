@@ -336,9 +336,9 @@ struct AddVaultSheet: View {
                     Button("取消") { dismiss() }
                 }
             }
-            .sheet(isPresented: $pickerActive) {
+            .fullScreenCover(isPresented: $pickerActive) {
                 // SwiftUI fileImporter 对第三方 App 位置（如 Obsidian）里的目录选择有已知缺陷：
-                // 「打开」无响应。改用 UIKit UIDocumentPickerViewController（Möbius / Working Copy 同方案）。
+                // 「打开」无响应。改用 UIKit UIDocumentPickerViewController，全屏呈现排除 sheet 呈现干扰。
                 FolderPicker { url in
                     handlePicked(url: url)
                 }
@@ -377,6 +377,7 @@ struct FolderPicker: UIViewControllerRepresentable {
     var onPick: (URL) -> Void
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        AddVaultSheet.logger.info("FolderPicker 即将呈现")
         let vc = UIDocumentPickerViewController(forOpeningContentTypes: [.folder], asCopy: false)
         vc.delegate = context.coordinator
         vc.allowsMultipleSelection = false
@@ -388,11 +389,17 @@ struct FolderPicker: UIViewControllerRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(onPick: onPick) }
 
     final class Coordinator: NSObject, UIDocumentPickerDelegate {
-        let onPick: (URL) -> Void
+        var onPick: (URL) -> Void
         init(onPick: @escaping (URL) -> Void) { self.onPick = onPick }
 
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            AddVaultSheet.logger.info("delegate 命中 didPick: \(urls.map({ $0.lastPathComponent }), privacy: .public)")
             onPick(urls[0])
+        }
+
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            AddVaultSheet.logger.info("delegate 命中 cancel")
+            onPick = { } // 取消不做任何事
         }
     }
 }
