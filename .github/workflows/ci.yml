@@ -1,9 +1,19 @@
 name: CI
 
+# 省额度（macOS runner 10 倍计费）：纯文档改动不触发；新 push 自动取消仍在跑的旧 run
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "openspec/**"
+      - "dist/**"
+      - "**.md"
   workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   go-kernel:
