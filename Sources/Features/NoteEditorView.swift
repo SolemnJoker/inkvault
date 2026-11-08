@@ -77,12 +77,16 @@ final class EditorCoordinator: NSObject, UITextViewDelegate, ObservableObject {
     let textView = VimTextView()
     let vim = VimEngine()
     let debouncer: Debouncer
+    let previewDebouncer = Debouncer(interval: 0.4)
 
     @Published var mode: VimEngine.Mode = .normal
     @Published var message = ""
     @Published var exPrompt = ""
     @Published var externalChange: String?
     @Published var saveError: String?
+    /// 分屏实时预览的文本（编辑后防抖 400ms 更新；超长文不实时刷新）
+    @Published var previewText = ""
+    static let previewLiveLimit = 300_000
 
     private var currentPath = ""
     private var loadedContent = ""
@@ -121,17 +125,22 @@ final class EditorCoordinator: NSObject, UITextViewDelegate, ObservableObject {
     func load(path: String, content: String) {
         guard path != currentPath || content != loadedContent else { return }
         debouncer.flush()
+        previewDebouncer.flush()
         currentPath = path
         loadedContent = content
         vim.setText(content, cursorAtEnd: true)
         textView.text = content
+        previewText = content // 预览先展示装载内容，后续防抖刷新
         baseline = stampNow()
         refreshFromEngine()
         scheduleHighlight()
     }
 
     /// 防抖窗口内切走前强制落盘（D-10）。
-    func flushPendingSave() { debouncer.flush() }
+    func flushPendingSave() {
+        debouncer.flush()
+        previewDebouncer.flush()
+    }
 
     // MARK: UITextViewDelegate
 
@@ -144,7 +153,17 @@ final class EditorCoordinator: NSObject, UITextViewDelegate, ObservableObject {
         let saved = UserDefaults.standard.double(forKey: "saveDebounceMs")
         if saved >= 800, saved <= 2000 { debouncer.interval = saved / 1000 }
         scheduleHighlight()
+        schedulePreview()
         debouncer.bounce { [weak self] in self?.save() }
+    }
+
+    /// 分屏预览防抖刷新（400ms）；超长文档不实时刷新（保持装载快照，防卡顿）。
+    private func schedulePreview() {
+        guard textView.text.utf16.count <= Self.previewLiveLimit else { return }
+        previewDebouncer.bounce { [weak self] in
+            guard let self else { return }
+            self.previewText = self.vim.text
+        }
     }
 
     func textViewDidChangeSelection(_ textView: UITextView) {
@@ -167,6 +186,7 @@ final class EditorCoordinator: NSObject, UITextViewDelegate, ObservableObject {
         exPrompt = vim.exPrompt
         textView.reloadInputViews()
         scheduleHighlight()
+        schedulePreview()
         if vim.mode == .insert {
             textView.becomeFirstResponder()
         }
@@ -206,6 +226,7 @@ final class EditorCoordinator: NSObject, UITextViewDelegate, ObservableObject {
         case .keepLocal:
             save(force: true) // 以本地内容覆盖，忽略基线检查（用户明确选择）
         }
+        previewText = vim.text
         refreshFromEngine()
     }
 

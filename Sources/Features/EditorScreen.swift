@@ -1,16 +1,33 @@
 import SwiftUI
 
-/// 编辑器整屏：文本视图 + vim 模式条（US-05：模式指示清晰可见）+ 保护弹窗。
+/// 编辑器整屏：单栏（编辑）或分屏（左编辑 + 右实时预览），vim 模式条 + 保护弹窗。
 struct EditorScreen: View {
     @EnvironmentObject private var model: AppModel
     let path: String
     let initialContent: String
+    var isSplit: Bool = false
+    var onWikiTap: ((String) -> Void)? = nil
     @StateObject private var coordinator = EditorCoordinator()
 
     var body: some View {
-        VStack(spacing: 0) {
-            NoteEditorView(coordinator: coordinator)
-            VimModeBar(coordinator: coordinator)
+        Group {
+            if isSplit {
+                HStack(spacing: 0) {
+                    editorColumn
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    Divider()
+                    ReadingView(
+                        path: path,
+                        content: coordinator.previewText,
+                        baseDir: AppModelHolderBridge.session?.rootURL,
+                        onWikiTap: { target in onWikiTap?(target) }
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(uiColor: .systemBackground))
+                }
+            } else {
+                editorColumn
+            }
         }
         .onAppear {
             AppModelHolderBridge.session = model.session
@@ -51,6 +68,14 @@ struct EditorScreen: View {
             Button("好", role: .cancel) { coordinator.saveError = nil }
         } message: {
             Text(coordinator.saveError ?? "")
+        }
+    }
+
+    /// 编辑半屏：文本视图 + vim 模式条。
+    private var editorColumn: some View {
+        VStack(spacing: 0) {
+            NoteEditorView(coordinator: coordinator)
+            VimModeBar(coordinator: coordinator)
         }
     }
 }

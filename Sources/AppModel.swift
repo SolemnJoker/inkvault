@@ -1,10 +1,11 @@
 import SwiftUI
 import UIKit
 
-/// 打开模式。
-enum NoteMode: Equatable {
+/// 打开模式（三态：阅读 / 编辑 / 分屏实时预览；raw 值用于持久化）。
+enum NoteMode: String, Equatable {
     case reading
     case editing
+    case split
 }
 
 /// 应用级状态与依赖装配。
@@ -18,7 +19,9 @@ final class AppModel: ObservableObject {
     @Published var session: VaultSession?
     @Published var conflictService: ConflictService?
     @Published var selectedPath: String?
-    @Published var mode: NoteMode = .reading
+    @Published var mode: NoteMode {
+        didSet { UserDefaults.standard.set(mode.rawValue, forKey: "noteMode") }
+    }
     /// 授权失效标记（US-01）
     @Published var vaultAuthorizationLost = false
     @Published var showAddVault = false
@@ -28,6 +31,7 @@ final class AppModel: ObservableObject {
     @Published var toast: String?
 
     init() {
+        mode = NoteMode(rawValue: UserDefaults.standard.string(forKey: "noteMode") ?? "") ?? .reading
         reopenCurrentVault()
     }
 

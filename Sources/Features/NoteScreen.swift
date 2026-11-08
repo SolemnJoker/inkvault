@@ -10,10 +10,17 @@ struct NoteScreen: View {
 
     var body: some View {
         Group {
-            if model.mode == .editing {
-                EditorScreen(path: path, initialContent: content)
-            } else {
+            switch model.mode {
+            case .reading:
                 ReadingView(path: path, content: content, baseDir: model.session?.rootURL, onWikiTap: { target in
+                    navigate(target: target)
+                })
+            case .editing:
+                EditorScreen(path: path, initialContent: content, isSplit: false, onWikiTap: { target in
+                    navigate(target: target)
+                })
+            case .split:
+                EditorScreen(path: path, initialContent: content, isSplit: true, onWikiTap: { target in
                     navigate(target: target)
                 })
             }
@@ -22,20 +29,32 @@ struct NoteScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    model.mode = model.mode == .reading ? .editing : .reading
+                Menu {
+                    Picker("查看方式", selection: $model.mode) {
+                        Label("阅读", systemImage: "book").tag(NoteMode.reading)
+                        Label("编辑", systemImage: "square.and.pencil").tag(NoteMode.editing)
+                        Label("分屏实时预览", systemImage: "square.leftthird.inset.filled").tag(NoteMode.split)
+                    }
                 } label: {
-                    Image(systemName: model.mode == .reading ? "square.and.pencil" : "book")
+                    Image(systemName: modeIcon)
                 }
             }
         }
         .task { load() }
         .onChange(of: path) { _, _ in
-            if model.mode == .editing { model.mode = .reading }
+            if model.mode != .reading { model.mode = .reading }
             load()
         }
         .alert("无法读取笔记", isPresented: $loadFailed) {} message: {
             Text("文件不存在或无法访问。")
+        }
+    }
+
+    private var modeIcon: String {
+        switch model.mode {
+        case .reading: return "book"
+        case .editing: return "square.and.pencil"
+        case .split: return "square.leftthird.inset.filled"
         }
     }
 
@@ -100,7 +119,8 @@ struct ReadingView: UIViewRepresentable {
     }
 
     func updateUIView(_ tv: UITextView, context: Context) {
-        guard context.coordinator.renderedPath != path || context.coordinator.renderedContent != content else { return }
+        let pathChanged = context.coordinator.renderedPath != path
+        guard pathChanged || context.coordinator.renderedContent != content else { return }
         context.coordinator.renderedPath = path
         context.coordinator.renderedContent = content
         context.coordinator.onWikiTap = onWikiTap
@@ -110,7 +130,10 @@ struct ReadingView: UIViewRepresentable {
         tv.attributedText = ReadingRenderer.render(text: content, baseDir: baseDir, maxWidth: tv.bounds.width) { item in
             pending.append(item)
         }
-        tv.setContentOffset(.zero, animated: false)
+        // 只在换笔记时回到顶部；实时预览刷新保持用户滚动位置
+        if pathChanged {
+            tv.setContentOffset(.zero, animated: false)
+        }
         context.coordinator.flushDiagrams(textView: tv, items: pending)
     }
 
