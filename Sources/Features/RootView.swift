@@ -302,6 +302,11 @@ struct AddVaultSheet: View {
                     } label: {
                         Label("诊断：导入副本模式选择", systemImage: "stethoscope")
                     }
+                    Section("签名自检") {
+                        Text(provisionSummary())
+                            .font(.caption)
+                            .textSelection(.enabled)
+                    }
                     if let picked {
                         HStack(alignment: .top, spacing: 10) {
                             Image(systemName: vaultDetected ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
@@ -369,12 +374,35 @@ struct AddVaultSheet: View {
         }
     }
 
+    /// 读取内嵌签名档案（embedded.mobileprovision）的关键信息：CMS 结构内嵌明文 XML，直接扫描。
+    private func provisionSummary() -> String {
+        guard let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision"),
+              let raw = try? Data(contentsOf: url),
+              let text = String(data: raw, encoding: .isoLatin1)
+        else { return "无内嵌档案（可能是开发直签）" }
+        func value(after key: String) -> String {
+            guard let kRange = text.range(of: key) else { return "?" }
+            guard let sRange = text.range(of: "<string>", range: kRange.upperBound..<text.endIndex) else { return "?" }
+            guard let eRange = text.range(of: "</string>", range: sRange.upperBound..<text.endIndex) else { return "?" }
+            return String(text[sRange.upperBound..<eRange.lowerBound])
+        }
+        let appId = value(after: "application-identifier")
+        let team = value(after: "com.apple.developer.team-identifier")
+        let name = value(after: "Name")
+        let exp = value(after: "ExpirationDate")
+        let bid = Bundle.main.bundleIdentifier ?? "-"
+        let match = appId.hasSuffix("." + bid) || appId.contains("*")
+        return "档案名:\(name) | 档案AppID:\(appId) | 团队:\(team) | 实际Bundle:\(bid) | 匹配:\(match ? "是" : "否！") | 有效期:\(exp)"
+    }
+
     private func logRuntimeFlags() {
         let info: [String: Any] = Bundle.main.infoDictionary ?? [:]
         let ls = info["LSSupportsOpeningDocumentsInPlace"].map { String(describing: $0) } ?? "(缺)"
         let browser = info["UISupportsDocumentBrowser"].map { String(describing: $0) } ?? "(缺)"
         let bundleId = Bundle.main.bundleIdentifier ?? "-"
+        let prov = provisionSummary()
         Self.logger.info("装机实际值: LS=\(ls, privacy: .public), DocBrowser=\(browser, privacy: .public), bundle=\(bundleId, privacy: .public)")
+        Self.logger.info("签名档案: \(prov, privacy: .public)")
     }
 
     /// Sideloadly 会强制注入 UISupportsDocumentBrowser=true；标记存在时必须走
