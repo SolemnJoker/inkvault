@@ -312,7 +312,7 @@ struct AddVaultSheet: View {
                 } header: {
                     Text("选择你已有的 Obsidian vault 目录")
                 } footer: {
-                    Text("仅支持「文件」App 或 iCloud 中可见的目录。若库存在 Obsidian App 内部（「我的 iPad」→ Obsidian），系统选择器无法访问——请在 Obsidian 中把库迁移到 iCloud 的 Obsidian 文件夹或任意「文件」位置。App 直接读写所选目录，不产生副本，.obsidian/ 保持只读。")
+                    Text("在文件选择器的「浏览」侧边栏里，Obsidian、iCloud 都是可选位置（Obsidian 已把内部存储暴露给系统文件 App，Möbius Sync 走的也是这条通道）。「浏览 → 我的 iPad → Obsidian」进入后选择你的库文件夹即可。App 直接读写所选目录，不产生副本，.obsidian/ 保持只读。")
                 }
             }
             .navigationTitle("添加笔记库")
@@ -336,21 +336,13 @@ struct AddVaultSheet: View {
                     Button("取消") { dismiss() }
                 }
             }
-            .fileImporter(isPresented: $pickerActive, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
-                if case .success(let urls) = result, let url = urls.first {
-                    let accessed = url.startAccessingSecurityScopedResource()
-                    defer { if accessed { url.stopAccessingSecurityScopedResource() } }
-                    do {
-                        let bookmark = try url.bookmarkData()
-                        let marker = url.appendingPathComponent(".obsidian")
-                        vaultDetected = FileManager.default.fileExists(atPath: marker.path)
-                        picked = (url, bookmark)
-                        Self.logger.info("已选择目录 \(url.lastPathComponent, privacy: .public), bookmark ok, vaultDetected=\(vaultDetected)")
-                    } catch {
-                        Self.logger.error("bookmark 失败: \(error.localizedDescription, privacy: .public)")
-                        errorMsg = "生成访问书签失败：\(error.localizedDescription)。请重试；若反复失败，请把库移动到「文件」App 可见的位置。"
-                    }
+            .sheet(isPresented: $pickerActive) {
+                // SwiftUI fileImporter 对第三方 App 位置（如 Obsidian）里的目录选择有已知缺陷：
+                // 「打开」无响应。改用 UIKit UIDocumentPickerViewController（Möbius / Working Copy 同方案）。
+                FolderPicker { url in
+                    handlePicked(url: url)
                 }
+                .ignoresSafeArea()
             }
             .alert("添加失败", isPresented: Binding(
                 get: { errorMsg != nil },
@@ -360,6 +352,47 @@ struct AddVaultSheet: View {
             } message: {
                 Text(errorMsg ?? "")
             }
+        }
+    }
+
+    private func handlePicked(url: URL) {
+        pickerActive = false
+        let accessed = url.startAccessingSecurityScopedResource()
+        defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+        do {
+            let bookmark = try url.bookmarkData()
+            let marker = url.appendingPathComponent(".obsidian")
+            vaultDetected = FileManager.default.fileExists(atPath: marker.path)
+            picked = (url, bookmark)
+            Self.logger.info("已选择目录 \(url.lastPathComponent, privacy: .public), bookmark ok, vaultDetected=\(vaultDetected)")
+        } catch {
+            Self.logger.error("bookmark 失败: \(error.localizedDescription, privacy: .public)")
+            errorMsg = "生成访问书签失败：\(error.localizedDescription)。请重试；若反复失败，请把库移动到「文件」App 可见的位置。"
+        }
+    }
+}
+
+/// UIKit 目录选择器：绕开 SwiftUI fileImporter 对第三方位置目录「打开」无响应的缺陷。
+struct FolderPicker: UIViewControllerRepresentable {
+    var onPick: (URL) -> Void
+
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let vc = UIDocumentPickerViewController(forOpeningContentTypes: [.folder], asCopy: false)
+        vc.delegate = context.coordinator
+        vc.allowsMultipleSelection = false
+        return vc
+    }
+
+    func updateUIViewController(_ vc: UIDocumentPickerViewController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(onPick: onPick) }
+
+    final class Coordinator: NSObject, UIDocumentPickerDelegate {
+        let onPick: (URL) -> Void
+        init(onPick: @escaping (URL) -> Void) { self.onPick = onPick }
+
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            onPick(urls[0])
         }
     }
 }
