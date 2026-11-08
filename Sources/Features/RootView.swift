@@ -93,7 +93,7 @@ struct SidebarView: View {
     @State private var searchText = ""
     @State private var searchResults: [SearchResult] = []
     @State private var searchTask: Task<Void, Never>?
-    @FocusState private var isSearchFocused: Bool
+    @State private var showQuickSearch = false
     @State private var showNewNoteAlert = false
     @State private var newNoteName = ""
 
@@ -134,6 +134,9 @@ struct SidebarView: View {
         } message: {
             Text("在当前库根目录创建")
         }
+        .sheet(isPresented: $showQuickSearch) {
+            QuickSearchView()
+        }
     }
 
     private var sidebarToolbar: some ToolbarContent {
@@ -173,9 +176,9 @@ struct SidebarView: View {
 
     private var shortcutTriggers: some View {
         Group {
-            Button("搜索") { isSearchFocused = true }
+            Button("搜索") { showQuickSearch = true }
                 .keyboardShortcut("o", modifiers: .command)
-            Button("搜索2") { isSearchFocused = true }
+            Button("搜索2") { showQuickSearch = true }
                 .keyboardShortcut("o", modifiers: [.option])
             Button("新建") {
                 newNoteName = ""
@@ -198,7 +201,6 @@ struct SidebarView: View {
         sidebarList
             .listStyle(.sidebar)
             .searchable(text: $searchText, prompt: "搜索文件名或内容")
-            .searchFocused($isSearchFocused)
     }
 
     private var sidebarList: some View {
@@ -557,6 +559,61 @@ struct FolderPicker: UIViewControllerRepresentable {
 
         func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
             AddVaultSheet.logger.info("delegate 命中 cancel")
+        }
+    }
+}
+
+
+// MARK: - 快速搜索（Obsidian 风格快速切换器，Cmd/Alt+O）
+
+struct QuickSearchView: View {
+    @EnvironmentObject private var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var query = ""
+    @State private var results: [SearchResult] = []
+    @State private var task: Task<Void, Never>?
+
+    var body: some View {
+        NavigationStack {
+            List(results) { r in
+                Button {
+                    model.selectedPath = r.path
+                    model.mode = .reading
+                    dismiss()
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(r.name)
+                        if let sn = r.snippet {
+                            Text(sn).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                        }
+                        Text(r.path).font(.caption2).foregroundStyle(.tertiary)
+                    }
+                }
+                .tint(.primary)
+            }
+            .overlay {
+                if results.isEmpty && !query.isEmpty {
+                    Text("无匹配结果").foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("快速搜索")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("关闭") { dismiss() }
+                }
+            }
+            .searchable(text: $query, prompt: "文件名或内容")
+            .onChange(of: query) { _, q in
+                task?.cancel()
+                guard !q.isEmpty else { results = []; return }
+                guard let session = model.session else { return }
+                let service = SearchService(session: session)
+                task = Task {
+                    let r = await service.search(q)
+                    if !Task.isCancelled { results = r }
+                }
+            }
         }
     }
 }
