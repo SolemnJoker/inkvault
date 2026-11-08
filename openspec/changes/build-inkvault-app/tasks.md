@@ -19,7 +19,7 @@
 
 - [x] 3.1 自研 Markdown 解析器（行级块 + 行内 span AST，支持增量重解析），覆盖标准元素与 [[、![[、frontmatter；验证：解析器 XCTest 全绿
 - [x] 3.2 阅读视图原生渲染：标题/列表/表格/任务列表/删除线/代码块、frontmatter 属性表、相对路径图片、wikilink 跳转、embed 嵌入；验证：样例库按 US-02 场景逐条人工核验
-- [ ] 3.3 Mermaid/KaTeX 离屏快照渲染（懒加载、仅可见时存活、离屏销毁）；验证：滚动离屏后 Instruments 显示相关内存释放
+- [x] 3.3 Mermaid/KaTeX 离屏快照渲染（懒加载、仅可见时存活、离屏销毁）；验证：滚动离屏后 Instruments 显示相关内存释放
 - [ ] 3.4 阅读性能验收：1000 篇库冷启动 < 2s、超长笔记快滚不掉帧；验证：NFR-02 两项实测数据记入台账
 
 ## 4. markdown-editing（US-04 / US-10）

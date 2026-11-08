@@ -5,7 +5,7 @@ iPad 原生 Markdown 笔记客户端：直接读写既有 Obsidian vault，主�
 ## 特性
 
 - **直接打开现有 vault**（security-scoped bookmark，不复制、不污染 `.obsidian/`）
-- **原生文本路径**渲染与编辑（禁 WebView；Mermaid/KaTeX 懒加载离屏例外）
+- **原生文本路径**渲染与编辑（禁 WebView；Mermaid/KaTeX 为 D-01 唯一例外：本地打包 JS + 离屏 WKWebView 快照，空闲即销毁，零网络）
 - **Vim 模式**：normal/insert/visual、核心 motions/operators/计数、`/` `?` `n/N` `:s`
 - **可靠保存**：防抖（800–2000ms 可配）+ 原子替换，保留创建时间；统一 VaultWriter + 操作日志
 - **手动同步**：内嵌 Syncthing 内核，点击「同步」→ 启动 → 完成/超时 → 停止；进后台立即停
