@@ -99,7 +99,7 @@ enum ReadingRenderer {
                 let font = UIFont.monospacedSystemFont(ofSize: 14, weight: .regular)
                 let body = NSMutableAttributedString(string: text + "\n", attributes: [
                     .font: font,
-                    .backgroundColor: UIColor.systemGray6,
+                    .backgroundColor: UIColor.secondarySystemBackground,
                     .paragraphStyle: para(spacingBefore: 6, spacingAfter: 10, lineSpacing: 1),
                 ])
                 out.append(body)
@@ -155,9 +155,11 @@ enum ReadingRenderer {
             ]))
             line.append(NSAttributedString(string: field.value, attributes: [
                 .font: UIFont.monospacedSystemFont(ofSize: 13, weight: .regular),
+                .foregroundColor: UIColor.label,
             ]))
             line.addAttribute(.paragraphStyle, value: para(spacingAfter: 1, headIndent: 12), range: NSRange(location: 0, length: line.length))
             out.append(line)
+            out.append(NSAttributedString(string: "\n"))
         }
         out.append(NSAttributedString(string: "\n", attributes: [.font: UIFont.systemFont(ofSize: 6)]))
         return out
@@ -207,7 +209,7 @@ enum ReadingRenderer {
         case .code(let s):
             return NSMutableAttributedString(string: s, attributes: [
                 .font: UIFont.monospacedSystemFont(ofSize: 15, weight: .regular),
-                .backgroundColor: UIColor.systemGray6,
+                .backgroundColor: UIColor.secondarySystemBackground,
             ])
         case .bold(let inner):
             let a = renderSpans(inner, baseDir: baseDir, sink: sink, idGen: idGen)
@@ -243,7 +245,7 @@ enum ReadingRenderer {
             return NSMutableAttributedString(string: "嵌入：\(target)\n", attributes: [
                 .font: UIFont.systemFont(ofSize: 14),
                 .foregroundColor: UIColor.secondaryLabel,
-                .backgroundColor: UIColor.systemGray6,
+                .backgroundColor: UIColor.secondarySystemBackground,
             ])
         case .image(let path, let alt):
             return renderImage(path: path, alt: alt, baseDir: baseDir)

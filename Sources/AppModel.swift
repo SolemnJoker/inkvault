@@ -92,6 +92,55 @@ final class AppModel: ObservableObject {
         }
     }
 
+    // MARK: - 新建笔记 / 每日笔记
+
+    /// 在库根新建笔记，返回相对路径（重名自动加序号）。
+    func createNote(named rawName: String) -> String? {
+        guard let root = session?.rootURL else { return nil }
+        var name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if name.isEmpty { name = "未命名" }
+        if name.hasSuffix(".md") { name = String(name.dropLast(3)) }
+        let forbidden = CharacterSet(charactersIn: "/\\:*?\"<>|")
+        name = name.components(separatedBy: forbidden).joined(separator: "-")
+        if name.isEmpty { name = "未命名" }
+        let rel = name + ".md"
+        let url = root.appendingPathComponent(rel)
+        if !FileManager.default.fileExists(atPath: url.path) {
+            try? writer.write("", to: url)
+            conflictService?.rescan()
+            return rel
+        }
+        var i = 1
+        while true {
+            let relN = "\(name) \(i).md"
+            let urlN = root.appendingPathComponent(relN)
+            if !FileManager.default.fileExists(atPath: urlN.path) {
+                try? writer.write("", to: urlN)
+                conflictService?.rescan()
+                return relN
+            }
+            i += 1
+        }
+    }
+
+    /// 每日笔记：存在则直接打开，不存在则按模板创建（frontmatter.create 对齐用户工作流）。
+    func openOrCreateDailyNote() -> String? {
+        guard let root = session?.rootURL else { return nil }
+        let day = DateFormatter()
+        day.dateFormat = "yyyy-MM-dd"
+        let name = day.string(from: Date())
+        let rel = name + ".md"
+        let url = root.appendingPathComponent(rel)
+        if !FileManager.default.fileExists(atPath: url.path) {
+            let ts = DateFormatter()
+            ts.dateFormat = "yyyy-MM-dd HH:mm"
+            let content = "---\ncreate: \(ts.string(from: Date()))\n---\n\n# \(name)\n\n"
+            try? writer.write(content, to: url)
+            conflictService?.rescan()
+        }
+        return rel
+    }
+
     func showToast(_ text: String) {
         toast = text
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) { [weak self] in

@@ -59,7 +59,11 @@ struct FrontmatterField: Equatable {
 struct MarkdownParser {
     /// 返回（frontmatter 字段, 块列表）；frontmatter 为 nil 表示无或未闭合。
     static func parse(_ text: String) -> (frontmatter: [FrontmatterField]?, blocks: [Block]) {
-        var lines = text.components(separatedBy: "\n")
+        // CRLF 归一化：Windows 来源的库常见，统一按 LF 处理
+        let normalized = text
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+        var lines = normalized.components(separatedBy: "\n")
         var frontmatter: [FrontmatterField]?
         if lines.first?.trimmingCharacters(in: .whitespaces) == "---" {
             var fields: [FrontmatterField] = []
@@ -67,7 +71,19 @@ struct MarkdownParser {
             var closed = false
             while i < lines.count {
                 let l = lines[i]
-                if l.trimmingCharacters(in: .whitespaces) == "---" { closed = true; break }
+                let t = l.trimmingCharacters(in: .whitespaces)
+                if t == "---" { closed = true; break }
+                // frontmatter 内的多行列表项（"- xxx"）归并到上一个键
+                if t.hasPrefix("-") {
+                    if !fields.isEmpty {
+                        let item = t.dropFirst().trimmingCharacters(in: .whitespaces)
+                        if !item.isEmpty {
+                            fields[fields.count - 1].value += (fields[fields.count - 1].value.isEmpty ? "" : "\u{3001}") + item
+                        }
+                    }
+                    i += 1
+                    continue
+                }
                 if let sep = l.firstIndex(of: ":") {
                     let key = String(l[..<sep]).trimmingCharacters(in: .whitespaces)
                     let value = String(l[l.index(after: sep)...]).trimmingCharacters(in: .whitespaces)

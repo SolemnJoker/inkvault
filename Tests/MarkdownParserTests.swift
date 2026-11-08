@@ -67,6 +67,24 @@ final class MarkdownParserTests: XCTestCase {
         })
     }
 
+    func testFrontmatterCRLFAndMultilineList() {
+        // 模拟 Windows 来源的库：CRLF + frontmatter 多行列表
+        let nl = "\r\n"
+        let text = "---" + nl + "level: 0" + nl + "type: default" + nl + "tags:" + nl
+            + "  - 信路威" + nl + "  - 工作" + nl
+            + "create: 2026-11-06 10:53:21" + nl + "---" + nl + nl + "body"
+        let (fm, blocks) = MarkdownParser.parse(text)
+        XCTAssertEqual(fm?.count, 4)
+        XCTAssertEqual(fm?[0].key, "level")
+        XCTAssertEqual(fm?[0].value, "0")
+        XCTAssertEqual(fm?[1].value, "default")
+        XCTAssertEqual(fm?[2].key, "tags")
+        XCTAssertEqual(fm?[2].value, "信路威、工作")
+        XCTAssertEqual(fm?[3].value, "2026-11-06 10:53:21")
+        // frontmatter 后的正文正常解析
+        XCTAssertEqual(blocks.count, 1)
+    }
+
     func testFrontmatter() {
         let text = "---\ntitle: 我的笔记\ntags: a, b\n---\n\n正文"
         let (fm, blocks) = MarkdownParser.parse(text)
