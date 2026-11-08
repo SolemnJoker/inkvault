@@ -23,6 +23,10 @@
 	<!-- 文档选择器以"就地打开"方式接收 vault 目录的必要声明（缺它则第三方位置「打开」无响应） -->
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<!-- 显式 false：Sideloadly 重签时会注入 true，导致系统按文档浏览器架构处理选择器，
+	     UIDocumentPickerViewController 的「打开」静默无响应（真机已实锤） -->
+	<key>UISupportsDocumentBrowser</key>
+	<false/>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

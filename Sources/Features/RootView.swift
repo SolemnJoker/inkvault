@@ -363,14 +363,21 @@ struct AddVaultSheet: View {
         }
     }
 
+    private func logRuntimeFlags() {
+        let info = Bundle.main.infoDictionary ?? [:]
+        let ls = info["LSSupportsOpeningDocumentsInPlace"] ?? "(缺)"
+        let browser = info["UISupportsDocumentBrowser"] ?? "(缺)"
+        Self.logger.info("装机实际值: LS=\(ls, privacy: .public), DocBrowser=\(browser, privacy: .public), bundle=\(Bundle.main.bundleIdentifier ?? "-", privacy: .public)")
+    }
+
     private func handlePicked(url: URL) {
         pickerActive = false
         Self.logger.info("handlePicked 进入, copyMode=\(copyMode), got=\(url.lastPathComponent, privacy: .public)")
+        logRuntimeFlags()
         if copyMode {
             // 诊断路径：导入模式（系统把目录复制进我们沙盒）。能到这说明授权机制本身通，
             // 失败仅在"就地打开"路径 —— 指向签名/授权问题。
-            errorMsg = "诊断成功：导入模式可以拿到目录（\(url.lastPathComponent)）。
-结论：问题锁定在『就地打开』授权路径（签名相关）。"
+            errorMsg = "诊断成功：导入模式可以拿到目录（\(url.lastPathComponent)）。问题锁定在『就地打开』授权路径（签名相关）。"
             return
         }
         let accessed = url.startAccessingSecurityScopedResource()
