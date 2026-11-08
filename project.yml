@@ -30,7 +30,9 @@ targets:
         embed: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.inkvault.app
+        # 包名必须与购买签名服务的档案 App ID 一致（超级签名固定包名，
+        # 否则 fileproviderd 拒绝就地打开授权：surprising bundle identifier → Cocoa 257）
+        PRODUCT_BUNDLE_IDENTIFIER: app.calcite3909.scorpio3556
         PRODUCT_NAME: InkVault
         INFOPLIST_FILE: App/Info.plist
         CURRENT_PROJECT_VERSION: "1"

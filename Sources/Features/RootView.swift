@@ -276,7 +276,7 @@ struct FileRow: View {
 }
 
 struct AddVaultSheet: View {
-    static let logger = Logger(subsystem: "com.inkvault.app", category: "vault")
+    static let logger = Logger(subsystem: "app.calcite3909.scorpio3556", category: "vault")
 
     @EnvironmentObject private var model: AppModel
     @Environment(\.dismiss) private var dismiss
