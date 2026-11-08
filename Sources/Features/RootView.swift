@@ -98,10 +98,7 @@ struct SidebarView: View {
     @State private var newNoteName = ""
 
     var body: some View {
-        sidebarList
-            .listStyle(.sidebar)
-        .searchable(text: $searchText, prompt: "搜索文件名或内容")
-        .searchFocused($isSearchFocused)
+        sidebarWithSearch
         .onAppear {
             // 冲突标记随同步更新（US-08）
             model.conflictService?.rescan()
@@ -122,63 +119,9 @@ struct SidebarView: View {
             }
         }
         .navigationTitle(model.registry.currentVault?.name ?? "InkVault")
-        .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                Menu {
-                    Button {
-                        if let rel = model.createNote(named: "未命名") {
-                            model.selectedPath = rel
-                            model.mode = .editing
-                        }
-                    } label: {
-                        Label("新建笔记", systemImage: "square.and.pencil")
-                    }
-                    Button {
-                        if let rel = model.openOrCreateDailyNote() {
-                            model.selectedPath = rel
-                            model.mode = .reading
-                        }
-                    } label: {
-                        Label("新建每日笔记", systemImage: "calendar.badge.plus")
-                    }
-                } label: {
-                    Image(systemName: "plus")
-                }
-                Button {
-                    model.showSyncScreen = true
-                } label: {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                }
-                Button {
-                    model.showSettings = true
-                } label: {
-                    Image(systemName: "gearshape")
-                }
-            }
-        }
+        .toolbar { sidebarToolbar }
         // 硬件键盘快捷键：Cmd/Alt+O 快速搜索、Cmd+N 新建笔记、Cmd+J 每日笔记
-        .background {
-            Group {
-                Button("搜索") { isSearchFocused = true }
-                    .keyboardShortcut("o", modifiers: .command)
-                Button("搜索2") { isSearchFocused = true }
-                    .keyboardShortcut("o", modifiers: [.option])
-                Button("新建") {
-                    newNoteName = ""
-                    showNewNoteAlert = true
-                }
-                .keyboardShortcut("n", modifiers: .command)
-                Button("日记") {
-                    if let rel = model.openOrCreateDailyNote() {
-                        model.selectedPath = rel
-                        model.mode = .reading
-                    }
-                }
-                .keyboardShortcut("j", modifiers: .command)
-            }
-            .opacity(0)
-            .frame(width: 0, height: 0)
-        }
+        .background { shortcutTriggers }
         .alert("新建笔记", isPresented: $showNewNoteAlert) {
             TextField("笔记名（可省略 .md）", text: $newNoteName)
             Button("创建") {
@@ -191,6 +134,71 @@ struct SidebarView: View {
         } message: {
             Text("在当前库根目录创建")
         }
+    }
+
+    private var sidebarToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Menu {
+                Button {
+                    if let rel = model.createNote(named: "未命名") {
+                        model.selectedPath = rel
+                        model.mode = .editing
+                    }
+                } label: {
+                    Label("新建笔记", systemImage: "square.and.pencil")
+                }
+                Button {
+                    if let rel = model.openOrCreateDailyNote() {
+                        model.selectedPath = rel
+                        model.mode = .reading
+                    }
+                } label: {
+                    Label("新建每日笔记", systemImage: "calendar.badge.plus")
+                }
+            } label: {
+                Image(systemName: "plus")
+            }
+            Button {
+                model.showSyncScreen = true
+            } label: {
+                Image(systemName: "arrow.triangle.2.circlepath")
+            }
+            Button {
+                model.showSettings = true
+            } label: {
+                Image(systemName: "gearshape")
+            }
+        }
+    }
+
+    private var shortcutTriggers: some View {
+        Group {
+            Button("搜索") { isSearchFocused = true }
+                .keyboardShortcut("o", modifiers: .command)
+            Button("搜索2") { isSearchFocused = true }
+                .keyboardShortcut("o", modifiers: [.option])
+            Button("新建") {
+                newNoteName = ""
+                showNewNoteAlert = true
+            }
+            .keyboardShortcut("n", modifiers: .command)
+            Button("日记") {
+                if let rel = model.openOrCreateDailyNote() {
+                    model.selectedPath = rel
+                    model.mode = .reading
+                }
+            }
+            .keyboardShortcut("j", modifiers: .command)
+        }
+        .opacity(0)
+        .frame(width: 0, height: 0)
+    }
+
+    private var sidebarWithSearch: some View {
+        sidebarList
+            .listStyle(.sidebar)
+            .searchable(text: $searchText, prompt: "搜索文件名或内容")
+            .searchFocused($isSearchFocused)
     }
 
     private var sidebarList: some View {
