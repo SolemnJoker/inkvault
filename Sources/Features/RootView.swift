@@ -364,10 +364,11 @@ struct AddVaultSheet: View {
     }
 
     private func logRuntimeFlags() {
-        let info = Bundle.main.infoDictionary ?? [:]
-        let ls = info["LSSupportsOpeningDocumentsInPlace"] ?? "(缺)"
-        let browser = info["UISupportsDocumentBrowser"] ?? "(缺)"
-        Self.logger.info("装机实际值: LS=\(ls, privacy: .public), DocBrowser=\(browser, privacy: .public), bundle=\(Bundle.main.bundleIdentifier ?? "-", privacy: .public)")
+        let info: [String: Any] = Bundle.main.infoDictionary ?? [:]
+        let ls = (info["LSSupportsOpeningDocumentsInPlace"] as Any?) ?? "(缺)"
+        let browser = (info["UISupportsDocumentBrowser"] as Any?) ?? "(缺)"
+        let bundleId = Bundle.main.bundleIdentifier ?? "-"
+        Self.logger.info("装机实际值: LS=\(ls, privacy: .public), DocBrowser=\(browser, privacy: .public), bundle=\(bundleId, privacy: .public)")
     }
 
     private func handlePicked(url: URL) {
