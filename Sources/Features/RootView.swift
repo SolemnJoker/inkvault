@@ -348,8 +348,7 @@ struct AddVaultSheet: View {
                         Self.logger.info("已选择目录 \(url.lastPathComponent, privacy: .public), bookmark ok, vaultDetected=\(vaultDetected)")
                     } catch {
                         Self.logger.error("bookmark 失败: \(error.localizedDescription, privacy: .public)")
-                        errorMsg = "生成访问书签失败：\(error.localizedDescription)
-请重试；若反复失败，请把库移动到"文件"App 可见的位置。"
+                        errorMsg = "生成访问书签失败：\(error.localizedDescription)。请重试；若反复失败，请把库移动到「文件」App 可见的位置。"
                     }
                 }
             }
