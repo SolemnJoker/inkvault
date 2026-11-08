@@ -276,7 +276,7 @@ struct FileRow: View {
 }
 
 struct AddVaultSheet: View {
-    private static let logger = Logger(subsystem: "com.inkvault.app", category: "vault")
+    static let logger = Logger(subsystem: "com.inkvault.app", category: "vault")
 
     @EnvironmentObject private var model: AppModel
     @Environment(\.dismiss) private var dismiss
@@ -399,7 +399,6 @@ struct FolderPicker: UIViewControllerRepresentable {
 
         func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
             AddVaultSheet.logger.info("delegate 命中 cancel")
-            onPick = { } // 取消不做任何事
         }
     }
 }
