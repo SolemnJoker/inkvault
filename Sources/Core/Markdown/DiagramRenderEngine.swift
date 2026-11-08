@@ -157,7 +157,7 @@ final class DiagramRenderEngine: NSObject {
         else {
             if let req = currentRequest {
                 currentRequest = nil
-                finish(req: req, image: UIImage(), size: .zero, error: "渲染输出异常", webView: wv)
+                finish(req: req, image: UIImage(), size: .zero, error: "渲染输出异常: \(String(text.prefix(160)))", webView: wv)
             }
             return
         }
@@ -213,8 +213,16 @@ final class DiagramRenderEngine: NSObject {
 
 extension DiagramRenderEngine: WKScriptMessageHandler {
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.name == "renderResult", let text = message.body as? String else { return }
+        guard message.name == "renderResult" else { return }
         guard let wv = webView else { return }
+        let text: String
+        if let s = message.body as? String {
+            text = s
+        } else if let data = try? JSONSerialization.data(withJSONObject: message.body, options: []) {
+            text = String(data: data, encoding: .utf8) ?? ""
+        } else {
+            text = ""
+        }
         handleRenderJSON(text, webView: wv)
     }
 }
