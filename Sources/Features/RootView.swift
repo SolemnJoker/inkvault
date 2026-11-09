@@ -140,7 +140,8 @@ struct SidebarView: View {
     }
 
     private var sidebarToolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .topBarTrailing) {
+        // 单项 Menu：规避 iPadOS 上 ToolbarItemGroup 内 Menu 无响应、窄栏 overflow「…」失效
+        ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 Button {
                     if let rel = model.createNote(named: "未命名") {
@@ -158,18 +159,19 @@ struct SidebarView: View {
                 } label: {
                     Label("新建每日笔记", systemImage: "calendar.badge.plus")
                 }
+                Divider()
+                Button {
+                    model.showSyncScreen = true
+                } label: {
+                    Label("同步", systemImage: "arrow.triangle.2.circlepath")
+                }
+                Button {
+                    model.showSettings = true
+                } label: {
+                    Label("设置", systemImage: "gearshape")
+                }
             } label: {
-                Image(systemName: "plus")
-            }
-            Button {
-                model.showSyncScreen = true
-            } label: {
-                Image(systemName: "arrow.triangle.2.circlepath")
-            }
-            Button {
-                model.showSettings = true
-            } label: {
-                Image(systemName: "gearshape")
+                Image(systemName: "ellipsis.circle")
             }
         }
     }
